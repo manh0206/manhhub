@@ -1,0 +1,120 @@
+-- LocalScript: Điều khiển tính năng xuyên tường và giữ cho nhân vật không bị lơ lửng
+
+-- Lấy đối tượng người chơi và nhân vật của họ
+local player = game.Players.LocalPlayer
+
+-- Tạo biến trạng thái xuyên tường
+local wallPassEnabled = false
+
+-- Tạo GUI và nút trong script
+local screenGui = Instance.new("ScreenGui")
+screenGui.Parent = player.PlayerGui
+
+-- Tạo nút Bật Xuyên Tường
+local toggleButton = Instance.new("TextButton")
+toggleButton.Size = UDim2.new(0, 150, 0, 50)
+toggleButton.Position = UDim2.new(0, 10, 0, 10)
+toggleButton.Text = "Bật Xuyên Tường"
+toggleButton.Parent = screenGui
+
+-- Tạo tên nhỏ "Master Manh Hub" ở góc nút Bật
+local nameLabel = Instance.new("TextLabel")
+nameLabel.Size = UDim2.new(0, 100, 0, 20)
+nameLabel.Position = UDim2.new(1, -110, 0, 30) -- Vị trí ở góc dưới bên phải của nút
+nameLabel.Text = "Master Manh Hub"
+nameLabel.TextSize = 14
+nameLabel.TextColor3 = Color3.fromRGB(255, 255, 255) -- Màu chữ trắng
+nameLabel.BackgroundTransparency = 1 -- Trong suốt nền
+nameLabel.Parent = toggleButton
+
+-- Tạo nút Tắt Xuyên Tường
+local toggleState = Instance.new("TextButton")
+toggleState.Size = UDim2.new(0, 150, 0, 50)
+toggleState.Position = UDim2.new(0, 10, 0, 70)
+toggleState.Text = "Tắt Xuyên Tường"
+toggleState.Parent = screenGui
+toggleState.Visible = false
+
+-- Tạo tên nhỏ "Master Manh Hub" ở góc nút Tắt
+local nameLabelState = Instance.new("TextLabel")
+nameLabelState.Size = UDim2.new(0, 100, 0, 20)
+nameLabelState.Position = UDim2.new(1, -110, 0, 30) -- Vị trí ở góc dưới bên phải của nút
+nameLabelState.Text = "Master Manh Hub"
+nameLabelState.TextSize = 14
+nameLabelState.TextColor3 = Color3.fromRGB(255, 255, 255) -- Màu chữ trắng
+nameLabelState.BackgroundTransparency = 1 -- Trong suốt nền
+nameLabelState.Parent = toggleState
+
+-- Hàm để bật/tắt xuyên tường
+local function toggleWallPass()
+    wallPassEnabled = not wallPassEnabled
+    if wallPassEnabled then
+        -- Bật tính năng xuyên tường
+        if character then
+            for _, part in pairs(character:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    part.CanCollide = false
+                end
+            end
+        end
+
+        toggleButton.Visible = false
+        toggleState.Visible = true
+    else
+        -- Tắt tính năng xuyên tường
+        if character then
+            for _, part in pairs(character:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    part.CanCollide = true
+                end
+            end
+        end
+
+        toggleButton.Visible = true
+        toggleState.Visible = false
+    end
+end
+
+-- Kết nối sự kiện cho nút
+toggleButton.MouseButton1Click:Connect(toggleWallPass)
+toggleState.MouseButton1Click:Connect(toggleWallPass)
+
+-- Hàm xử lý khi nhân vật được thêm vào
+local function onCharacterAdded(char)
+    character = char
+    -- Đặt lại trạng thái xuyên tường khi nhân vật được thêm vào (hồi sinh)
+    wallPassEnabled = false
+    toggleButton.Visible = true
+    toggleState.Visible = false
+end
+
+-- Kết nối sự kiện cho nhân vật mới được thêm vào
+player.CharacterAdded:Connect(onCharacterAdded)
+
+-- Đảm bảo rằng tính năng xuyên tường không hoạt động nếu nhân vật chết
+local function onCharacterDied()
+    -- Đặt lại trạng thái xuyên tường
+    wallPassEnabled = false
+    toggleButton.Visible = true
+    toggleState.Visible = false
+end
+
+-- Kết nối sự kiện cho khi nhân vật chết
+if character and character:FindFirstChild("Humanoid") then
+    character.Humanoid.Died:Connect(onCharacterDied)
+end
+
+-- Theo dõi sự kiện khi nhân vật chết
+player.CharacterRemoving:Connect(onCharacterDied)
+
+-- Cập nhật trạng thái xuyên tường liên tục
+while true do
+    wait(0.1) -- Kiểm tra thường xuyên để đảm bảo trạng thái xuyên tường luôn được duy trì
+    if wallPassEnabled and character and character:FindFirstChild("HumanoidRootPart") then
+        for _, part in pairs(character:GetDescendants()) do
+            if part:IsA("BasePart") then
+                part.CanCollide = false
+            end
+        end
+    end
+end
