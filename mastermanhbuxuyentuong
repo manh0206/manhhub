@@ -5,10 +5,12 @@ local player = game.Players.LocalPlayer
 
 -- Tạo biến trạng thái xuyên tường
 local wallPassEnabled = false
+local character = player.Character or player.CharacterAdded:Wait()
 
 -- Tạo GUI và nút trong script
 local screenGui = Instance.new("ScreenGui")
-screenGui.Parent = player.PlayerGui
+screenGui.Name = "WallPassGui"
+screenGui.Parent = player:WaitForChild("PlayerGui")
 
 -- Tạo nút Bật Xuyên Tường
 local toggleButton = Instance.new("TextButton")
@@ -50,26 +52,20 @@ local function toggleWallPass()
     wallPassEnabled = not wallPassEnabled
     if wallPassEnabled then
         -- Bật tính năng xuyên tường
-        if character then
-            for _, part in pairs(character:GetDescendants()) do
-                if part:IsA("BasePart") then
-                    part.CanCollide = false
-                end
+        for _, part in pairs(character:GetDescendants()) do
+            if part:IsA("BasePart") then
+                part.CanCollide = false
             end
         end
-
         toggleButton.Visible = false
         toggleState.Visible = true
     else
         -- Tắt tính năng xuyên tường
-        if character then
-            for _, part in pairs(character:GetDescendants()) do
-                if part:IsA("BasePart") then
-                    part.CanCollide = true
-                end
+        for _, part in pairs(character:GetDescendants()) do
+            if part:IsA("BasePart") then
+                part.CanCollide = true
             end
         end
-
         toggleButton.Visible = true
         toggleState.Visible = false
     end
@@ -86,10 +82,19 @@ local function onCharacterAdded(char)
     wallPassEnabled = false
     toggleButton.Visible = true
     toggleState.Visible = false
-end
 
--- Kết nối sự kiện cho nhân vật mới được thêm vào
-player.CharacterAdded:Connect(onCharacterAdded)
+    -- Đảm bảo trạng thái va chạm được đặt lại đúng cách khi nhân vật được thêm vào
+    for _, part in pairs(character:GetDescendants()) do
+        if part:IsA("BasePart") then
+            part.CanCollide = true
+        end
+    end
+
+    -- Kết nối sự kiện chết cho nhân vật mới
+    if character:FindFirstChild("Humanoid") then
+        character.Humanoid.Died:Connect(onCharacterDied)
+    end
+end
 
 -- Đảm bảo rằng tính năng xuyên tường không hoạt động nếu nhân vật chết
 local function onCharacterDied()
@@ -97,19 +102,23 @@ local function onCharacterDied()
     wallPassEnabled = false
     toggleButton.Visible = true
     toggleState.Visible = false
+
+    -- Đảm bảo trạng thái va chạm được đặt lại đúng cách khi nhân vật chết
+    for _, part in pairs(character:GetDescendants()) do
+        if part:IsA("BasePart") then
+            part.CanCollide = true
+        end
+    end
 end
 
--- Kết nối sự kiện cho khi nhân vật chết
-if character and character:FindFirstChild("Humanoid") then
-    character.Humanoid.Died:Connect(onCharacterDied)
-end
+-- Kết nối sự kiện cho nhân vật mới được thêm vào
+player.CharacterAdded:Connect(onCharacterAdded)
 
 -- Theo dõi sự kiện khi nhân vật chết
 player.CharacterRemoving:Connect(onCharacterDied)
 
 -- Cập nhật trạng thái xuyên tường liên tục
-while true do
-    wait(0.1) -- Kiểm tra thường xuyên để đảm bảo trạng thái xuyên tường luôn được duy trì
+game:GetService("RunService").Stepped:Connect(function()
     if wallPassEnabled and character and character:FindFirstChild("HumanoidRootPart") then
         for _, part in pairs(character:GetDescendants()) do
             if part:IsA("BasePart") then
@@ -117,4 +126,4 @@ while true do
             end
         end
     end
-end
+end)
