@@ -7,6 +7,17 @@ local player = game.Players.LocalPlayer
 local wallPassEnabled = false
 local character = player.Character or player.CharacterAdded:Wait()
 
+-- Tạo biến trạng thái tăng tốc độ
+local speedBoostEnabled = false
+local normalWalkSpeed = 16 -- Tốc độ đi bộ bình thường
+local boostedWalkSpeed = 32 -- Tốc độ đi bộ khi tăng tốc
+
+-- Tạo bảng để lưu trữ BillboardGui cho mỗi người chơi
+local playerBillboards = {}
+
+-- Tạo biến lưu trữ animation track
+local speedBoostAnimationTrack
+
 -- Hàm để tạo GUI và nút
 local function createGUI()
     -- Xóa GUI cũ nếu có
@@ -19,40 +30,54 @@ local function createGUI()
     screenGui.Name = "WallPassGui"
     screenGui.Parent = player:WaitForChild("PlayerGui")
 
+    -- Tạo Frame có thể kéo đi lại
+    local draggableFrame = Instance.new("Frame")
+    draggableFrame.Size = UDim2.new(0, 400, 0, 200)
+    draggableFrame.Position = UDim2.new(0.5, -200, 0.5, -100) -- Vị trí giữa màn hình
+    draggableFrame.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+    draggableFrame.Active = true
+    draggableFrame.Draggable = true -- Cho phép kéo đi lại
+    draggableFrame.Parent = screenGui
+
+    -- Tạo tên nhỏ "Master Manh Hub" ở góc trên bên trái của GUI
+    local nameLabel = Instance.new("TextLabel")
+    nameLabel.Size = UDim2.new(0, 100, 0, 20)
+    nameLabel.Position = UDim2.new(0, 10, 0, 10) -- Vị trí ở góc trên bên trái của GUI
+    nameLabel.Text = "Master Manh Hub"
+    nameLabel.TextSize = 10
+    nameLabel.TextColor3 = Color3.fromRGB(255, 255, 255) -- Màu chữ trắng
+    nameLabel.BackgroundTransparency = 1 -- Trong suốt nền
+    nameLabel.Parent = draggableFrame
+
     -- Tạo nút Bật Xuyên Tường
     local toggleButton = Instance.new("TextButton")
     toggleButton.Size = UDim2.new(0, 150, 0, 50)
-    toggleButton.Position = UDim2.new(0, 10, 0, 10)
+    toggleButton.Position = UDim2.new(0, 10, 0, 40) -- Điều chỉnh vị trí để không trùng với nameLabel
     toggleButton.Text = "Bật Xuyên Tường"
-    toggleButton.Parent = screenGui
-
-    -- Tạo tên nhỏ "Master Manh Hub" ở góc nút Bật
-    local nameLabel = Instance.new("TextLabel")
-    nameLabel.Size = UDim2.new(0, 100, 0, 20)
-    nameLabel.Position = UDim2.new(1, -110, 0, 30) -- Vị trí ở góc dưới bên phải của nút
-    nameLabel.Text = "Master Manh Hub"
-    nameLabel.TextSize = 14
-    nameLabel.TextColor3 = Color3.fromRGB(255, 255, 255) -- Màu chữ trắng
-    nameLabel.BackgroundTransparency = 1 -- Trong suốt nền
-    nameLabel.Parent = toggleButton
+    toggleButton.Parent = draggableFrame
 
     -- Tạo nút Tắt Xuyên Tường
     local toggleState = Instance.new("TextButton")
     toggleState.Size = UDim2.new(0, 150, 0, 50)
-    toggleState.Position = UDim2.new(0, 10, 0, 70)
+    toggleState.Position = UDim2.new(0, 170, 0, 40) -- Đặt cạnh nút Bật Xuyên Tường
     toggleState.Text = "Tắt Xuyên Tường"
-    toggleState.Parent = screenGui
+    toggleState.Parent = draggableFrame
     toggleState.Visible = false
 
-    -- Tạo tên nhỏ "Master Manh Hub" ở góc nút Tắt
-    local nameLabelState = Instance.new("TextLabel")
-    nameLabelState.Size = UDim2.new(0, 100, 0, 20)
-    nameLabelState.Position = UDim2.new(1, -110, 0, 30) -- Vị trí ở góc dưới bên phải của nút
-    nameLabelState.Text = "Master Manh Hub"
-    nameLabelState.TextSize = 14
-    nameLabelState.TextColor3 = Color3.fromRGB(255, 255, 255) -- Màu chữ trắng
-    nameLabelState.BackgroundTransparency = 1 -- Trong suốt nền
-    nameLabelState.Parent = toggleState
+    -- Tạo nút Bật Tăng Tốc Độ
+    local speedButton = Instance.new("TextButton")
+    speedButton.Size = UDim2.new(0, 150, 0, 50)
+    speedButton.Position = UDim2.new(0, 10, 0, 100)
+    speedButton.Text = "Bật Tăng Tốc Độ"
+    speedButton.Parent = draggableFrame
+
+    -- Tạo nút Tắt Tăng Tốc Độ
+    local speedState = Instance.new("TextButton")
+    speedState.Size = UDim2.new(0, 150, 0, 50)
+    speedState.Position = UDim2.new(0, 170, 0, 100) -- Đặt cạnh nút Bật Tăng Tốc Độ
+    speedState.Text = "Tắt Tăng Tốc Độ"
+    speedState.Parent = draggableFrame
+    speedState.Visible = false
 
     -- Hàm để bật/tắt xuyên tường
     local function toggleWallPass()
@@ -78,23 +103,104 @@ local function createGUI()
         end
     end
 
+    -- Hàm để bật/tắt tăng tốc độ
+    local function toggleSpeedBoost()
+        speedBoostEnabled = not speedBoostEnabled
+        if speedBoostEnabled then
+            -- Bật tăng tốc độ
+            if character:FindFirstChild("Humanoid") then
+                character.Humanoid.WalkSpeed = 50 -- Đặt tốc độ là 50
+
+                -- Phát animation tăng tốc độ
+                local speedBoostAnimation = Instance.new("Animation")
+                speedBoostAnimation.AnimationId = "rbxassetid://<AnimationID>" -- Thay <AnimationID> bằng ID của animation
+                speedBoostAnimationTrack = character.Humanoid:LoadAnimation(speedBoostAnimation)
+                speedBoostAnimationTrack:Play()
+            end
+            speedButton.Visible = false
+            speedState.Visible = true
+        else
+            -- Tắt tăng tốc độ
+            if character:FindFirstChild("Humanoid") then
+                character.Humanoid.WalkSpeed = normalWalkSpeed
+
+                -- Dừng animation tăng tốc độ
+                if speedBoostAnimationTrack then
+                    speedBoostAnimationTrack:Stop()
+                    speedBoostAnimationTrack = nil
+                end
+            end
+            speedButton.Visible = true
+            speedState.Visible = false
+        end
+    end
+
+    -- Hàm để cập nhật danh sách người chơi
+    local function updatePlayerList()
+        -- Lấy vị trí của người chơi hiện tại
+        local currentPlayerPosition = character:FindFirstChild("HumanoidRootPart") and character.HumanoidRootPart.Position
+
+        -- Duyệt qua tất cả người chơi
+        for _, otherPlayer in pairs(game.Players:GetPlayers()) do
+            if otherPlayer.Character and otherPlayer.Character:FindFirstChild("HumanoidRootPart") then
+                local position = otherPlayer.Character.HumanoidRootPart.Position
+                local playerName = otherPlayer.Name
+
+                -- Tính khoảng cách từ người chơi hiện tại đến người chơi khác
+                local distance = (currentPlayerPosition - position).Magnitude
+                local distanceInt = math.floor(distance) -- Làm tròn xuống để lấy số tự nhiên
+
+                -- Kiểm tra và tạo BillboardGui nếu chưa tồn tại
+                if not playerBillboards[otherPlayer] then
+                    local billboardGui = Instance.new("BillboardGui")
+                    billboardGui.Name = "DistanceGui"
+                    billboardGui.Size = UDim2.new(0, 60, 0, 30) -- Kích thước nhỏ hơn
+                    billboardGui.StudsOffset = Vector3.new(0, 3, 0)
+                    billboardGui.AlwaysOnTop = true
+                    billboardGui.Parent = otherPlayer.Character:FindFirstChild("Head")
+
+                    local distanceLabel = Instance.new("TextLabel")
+                    distanceLabel.Size = UDim2.new(1, 0, 1, 0)
+                    distanceLabel.BackgroundTransparency = 1
+                    distanceLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+                    distanceLabel.TextScaled = false
+                    distanceLabel.TextSize = 18 -- Tăng kích thước chữ
+                    distanceLabel.Font = Enum.Font.SourceSansBold -- Font đậm hơn
+                    distanceLabel.Parent = billboardGui
+
+                    playerBillboards[otherPlayer] = distanceLabel
+                end
+
+                -- Cập nhật khoảng cách trong BillboardGui
+                playerBillboards[otherPlayer].Text = string.format("%s: %d m", playerName, distanceInt)
+            end
+        end
+    end
+
     -- Kết nối sự kiện cho nút
     toggleButton.MouseButton1Click:Connect(toggleWallPass)
     toggleState.MouseButton1Click:Connect(toggleWallPass)
+    speedButton.MouseButton1Click:Connect(toggleSpeedBoost)
+    speedState.MouseButton1Click:Connect(toggleSpeedBoost)
+
+    -- Cập nhật danh sách người chơi mỗi khi có người chơi di chuyển
+    game:GetService("RunService").Stepped:Connect(updatePlayerList)
 end
 
 -- Hàm xử lý khi nhân vật được thêm vào
 local function onCharacterAdded(char)
     character = char
-    -- Đặt lại trạng thái xuyên tường khi nhân vật được thêm vào (hồi sinh)
+    -- Đặt lại trạng thái xuyên tường và tăng tốc độ khi nhân vật được thêm vào (hồi sinh)
     wallPassEnabled = false
+    speedBoostEnabled = false
     createGUI()
 end
 
 -- Đảm bảo rằng tính năng xuyên tường không hoạt động nếu nhân vật chết
 local function onCharacterDied()
-    -- Đặt lại trạng thái xuyên tường
+    -- Đặt lại trạng thái xuyên tường và tăng tốc độ
     wallPassEnabled = false
+    speedBoostEnabled = false
     createGUI()
 end
 
