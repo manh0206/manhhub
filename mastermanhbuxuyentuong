@@ -7,16 +7,8 @@ local player = game.Players.LocalPlayer
 local wallPassEnabled = false
 local character = player.Character or player.CharacterAdded:Wait()
 
--- Tạo biến trạng thái tăng tốc độ
-local speedBoostEnabled = false
-local normalWalkSpeed = 16 -- Tốc độ đi bộ bình thường
-local boostedWalkSpeed = 32 -- Tốc độ đi bộ khi tăng tốc
-
 -- Tạo bảng để lưu trữ BillboardGui cho mỗi người chơi
 local playerBillboards = {}
-
--- Tạo biến lưu trữ animation track
-local speedBoostAnimationTrack
 
 -- Hàm để tạo GUI và nút
 local function createGUI()
@@ -49,35 +41,74 @@ local function createGUI()
     nameLabel.BackgroundTransparency = 1 -- Trong suốt nền
     nameLabel.Parent = draggableFrame
 
-    -- Tạo nút Bật Xuyên Tường
-    local toggleButton = Instance.new("TextButton")
-    toggleButton.Size = UDim2.new(0, 150, 0, 50)
-    toggleButton.Position = UDim2.new(0, 10, 0, 40) -- Điều chỉnh vị trí để không trùng với nameLabel
-    toggleButton.Text = "Bật Xuyên Tường"
-    toggleButton.Parent = draggableFrame
+    -- Tạo gạt nút cho Xuyên Tường
+    local wallPassLabel = Instance.new("TextLabel")
+    wallPassLabel.Size = UDim2.new(0, 100, 0, 50)
+    wallPassLabel.Position = UDim2.new(0, 10, 0, 40)
+    wallPassLabel.Text = "Xuyên Tường"
+    wallPassLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    wallPassLabel.BackgroundTransparency = 1
+    wallPassLabel.Parent = draggableFrame
 
-    -- Tạo nút Tắt Xuyên Tường
-    local toggleState = Instance.new("TextButton")
-    toggleState.Size = UDim2.new(0, 150, 0, 50)
-    toggleState.Position = UDim2.new(0, 170, 0, 40) -- Đặt cạnh nút Bật Xuyên Tường
-    toggleState.Text = "Tắt Xuyên Tường"
-    toggleState.Parent = draggableFrame
-    toggleState.Visible = false
+    local wallPassSwitch = Instance.new("Frame")
+    wallPassSwitch.Size = UDim2.new(0, 50, 0, 25)
+    wallPassSwitch.Position = UDim2.new(0, 120, 0, 40)
+    wallPassSwitch.BackgroundColor3 = Color3.fromRGB(255, 0, 0) -- Màu đỏ cho không kích hoạt
+    wallPassSwitch.Parent = draggableFrame
 
-    -- Tạo nút Bật Tăng Tốc Độ
-    local speedButton = Instance.new("TextButton")
-    speedButton.Size = UDim2.new(0, 150, 0, 50)
-    speedButton.Position = UDim2.new(0, 10, 0, 100)
-    speedButton.Text = "Bật Tăng Tốc Độ"
-    speedButton.Parent = draggableFrame
+    local wallPassToggle = Instance.new("Frame")
+    wallPassToggle.Size = UDim2.new(0, 25, 0, 25)
+    wallPassToggle.Position = UDim2.new(0, 0, 0, 0)
+    wallPassToggle.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    wallPassToggle.Parent = wallPassSwitch
 
-    -- Tạo nút Tắt Tăng Tốc Độ
-    local speedState = Instance.new("TextButton")
-    speedState.Size = UDim2.new(0, 150, 0, 50)
-    speedState.Position = UDim2.new(0, 170, 0, 100) -- Đặt cạnh nút Bật Tăng Tốc Độ
-    speedState.Text = "Tắt Tăng Tốc Độ"
-    speedState.Parent = draggableFrame
-    speedState.Visible = false
+    -- Tạo gạt nút cho Tốc Độ
+    local speedLabel = Instance.new("TextLabel")
+    speedLabel.Size = UDim2.new(0, 100, 0, 50)
+    speedLabel.Position = UDim2.new(0, 10, 0, 100)
+    speedLabel.Text = "Tốc Độ"
+    speedLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    speedLabel.BackgroundTransparency = 1
+    speedLabel.Parent = draggableFrame
+
+    local speedSwitch = Instance.new("Frame")
+    speedSwitch.Size = UDim2.new(0, 50, 0, 25)
+    speedSwitch.Position = UDim2.new(0, 120, 0, 100)
+    speedSwitch.BackgroundColor3 = Color3.fromRGB(255, 0, 0) -- Màu đỏ cho không kích hoạt
+    speedSwitch.Parent = draggableFrame
+
+    local speedToggle = Instance.new("Frame")
+    speedToggle.Size = UDim2.new(0, 25, 0, 25)
+    speedToggle.Position = UDim2.new(0, 0, 0, 0)
+    speedToggle.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    speedToggle.Parent = speedSwitch
+
+    -- Biến trạng thái tốc độ
+    local speedEnabled = false
+
+    -- Tạo gạt nút cho Hiển thị vị trí
+    local displayPositionLabel = Instance.new("TextLabel")
+    displayPositionLabel.Size = UDim2.new(0, 100, 0, 50)
+    displayPositionLabel.Position = UDim2.new(0, 10, 0, 160)
+    displayPositionLabel.Text = "Hiển thị vị trí"
+    displayPositionLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    displayPositionLabel.BackgroundTransparency = 1
+    displayPositionLabel.Parent = draggableFrame
+
+    local displayPositionSwitch = Instance.new("Frame")
+    displayPositionSwitch.Size = UDim2.new(0, 50, 0, 25)
+    displayPositionSwitch.Position = UDim2.new(0, 120, 0, 160)
+    displayPositionSwitch.BackgroundColor3 = Color3.fromRGB(255, 0, 0) -- Màu đỏ cho không kích hoạt
+    displayPositionSwitch.Parent = draggableFrame
+
+    local displayPositionToggle = Instance.new("Frame")
+    displayPositionToggle.Size = UDim2.new(0, 25, 0, 25)
+    displayPositionToggle.Position = UDim2.new(0, 0, 0, 0)
+    displayPositionToggle.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    displayPositionToggle.Parent = displayPositionSwitch
+
+    -- Biến trạng thái hiển thị vị trí
+    local displayPositionEnabled = false
 
     -- Hàm để bật/tắt xuyên tường
     local function toggleWallPass()
@@ -89,8 +120,8 @@ local function createGUI()
                     part.CanCollide = false
                 end
             end
-            toggleButton.Visible = false
-            toggleState.Visible = true
+            wallPassSwitch.BackgroundColor3 = Color3.fromRGB(0, 255, 0) -- Màu xanh lá cho kích hoạt
+            wallPassToggle.Position = UDim2.new(0, 25, 0, 0) -- Di chuyển gạt nút
         else
             -- Tắt tính năng xuyên tường
             for _, part in pairs(character:GetDescendants()) do
@@ -98,40 +129,48 @@ local function createGUI()
                     part.CanCollide = true
                 end
             end
-            toggleButton.Visible = true
-            toggleState.Visible = false
+            wallPassSwitch.BackgroundColor3 = Color3.fromRGB(255, 0, 0) -- Màu đỏ cho không kích hoạt
+            wallPassToggle.Position = UDim2.new(0, 0, 0, 0) -- Di chuyển gạt nút
         end
     end
 
-    -- Hàm để bật/tắt tăng tốc độ
-    local function toggleSpeedBoost()
-        speedBoostEnabled = not speedBoostEnabled
-        if speedBoostEnabled then
-            -- Bật tăng tốc độ
+    -- Hàm để bật/tắt tốc độ
+    local function toggleSpeed()
+        speedEnabled = not speedEnabled
+        if speedEnabled then
+            -- Tăng tốc độ
             if character:FindFirstChild("Humanoid") then
-                character.Humanoid.WalkSpeed = 50 -- Đặt tốc độ là 50
-
-                -- Phát animation tăng tốc độ
-                local speedBoostAnimation = Instance.new("Animation")
-                speedBoostAnimation.AnimationId = "rbxassetid://<AnimationID>" -- Thay <AnimationID> bằng ID của animation
-                speedBoostAnimationTrack = character.Humanoid:LoadAnimation(speedBoostAnimation)
-                speedBoostAnimationTrack:Play()
+                character.Humanoid.WalkSpeed = 50
             end
-            speedButton.Visible = false
-            speedState.Visible = true
+            speedSwitch.BackgroundColor3 = Color3.fromRGB(0, 255, 0) -- Màu xanh lá cho kích hoạt
+            speedToggle.Position = UDim2.new(0, 25, 0, 0) -- Di chuyển gạt nút
         else
-            -- Tắt tăng tốc độ
+            -- Giảm tốc độ về mức bình thường
             if character:FindFirstChild("Humanoid") then
-                character.Humanoid.WalkSpeed = normalWalkSpeed
+                character.Humanoid.WalkSpeed = 16 -- Tốc độ mặc định
+            end
+            speedSwitch.BackgroundColor3 = Color3.fromRGB(255, 0, 0) -- Màu đỏ cho không kích hoạt
+            speedToggle.Position = UDim2.new(0, 0, 0, 0) -- Di chuyển gạt nút
+        end
+    end
 
-                -- Dừng animation tăng tốc độ
-                if speedBoostAnimationTrack then
-                    speedBoostAnimationTrack:Stop()
-                    speedBoostAnimationTrack = nil
+    -- Hàm để bật/tắt hiển thị vị trí
+    local function toggleDisplayPosition()
+        displayPositionEnabled = not displayPositionEnabled
+        if displayPositionEnabled then
+            displayPositionSwitch.BackgroundColor3 = Color3.fromRGB(0, 255, 0) -- Màu xanh lá cho kích hoạt
+            displayPositionToggle.Position = UDim2.new(0, 25, 0, 0) -- Di chuyển gạt nút
+        else
+            displayPositionSwitch.BackgroundColor3 = Color3.fromRGB(255, 0, 0) -- Màu đỏ cho không kích hoạt
+            displayPositionToggle.Position = UDim2.new(0, 0, 0, 0) -- Di chuyển gạt nút
+
+            -- Xóa tất cả BillboardGui khi tắt hiển thị vị trí
+            for _, distanceLabel in pairs(playerBillboards) do
+                if distanceLabel.Parent then
+                    distanceLabel.Parent:Destroy()
                 end
             end
-            speedButton.Visible = true
-            speedState.Visible = false
+            playerBillboards = {}
         end
     end
 
@@ -177,14 +216,32 @@ local function createGUI()
         end
     end
 
-    -- Kết nối sự kiện cho nút
-    toggleButton.MouseButton1Click:Connect(toggleWallPass)
-    toggleState.MouseButton1Click:Connect(toggleWallPass)
-    speedButton.MouseButton1Click:Connect(toggleSpeedBoost)
-    speedState.MouseButton1Click:Connect(toggleSpeedBoost)
+    -- Kết nối sự kiện cho gạt nút
+    wallPassSwitch.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            toggleWallPass()
+        end
+    end)
+
+    speedSwitch.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            toggleSpeed()
+        end
+    end)
+
+    -- Kết nối sự kiện cho gạt nút hiển thị vị trí
+    displayPositionSwitch.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            toggleDisplayPosition()
+        end
+    end)
 
     -- Cập nhật danh sách người chơi mỗi khi có người chơi di chuyển
-    game:GetService("RunService").Stepped:Connect(updatePlayerList)
+    game:GetService("RunService").Stepped:Connect(function()
+        if displayPositionEnabled then
+            updatePlayerList()
+        end
+    end)
 end
 
 -- Hàm xử lý khi nhân vật được thêm vào
@@ -192,7 +249,6 @@ local function onCharacterAdded(char)
     character = char
     -- Đặt lại trạng thái xuyên tường và tăng tốc độ khi nhân vật được thêm vào (hồi sinh)
     wallPassEnabled = false
-    speedBoostEnabled = false
     createGUI()
 end
 
@@ -200,7 +256,6 @@ end
 local function onCharacterDied()
     -- Đặt lại trạng thái xuyên tường và tăng tốc độ
     wallPassEnabled = false
-    speedBoostEnabled = false
     createGUI()
 end
 
