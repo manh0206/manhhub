@@ -24,27 +24,113 @@ local function createGUI()
 
     -- Tạo Frame có thể kéo đi lại
     local draggableFrame = Instance.new("Frame")
-    draggableFrame.Size = UDim2.new(0, 400, 0, 200)
-    draggableFrame.Position = UDim2.new(0.5, -200, 0.5, -100) -- Vị trí giữa màn hình
+    draggableFrame.Size = UDim2.new(0, 400, 0, 230) -- Tăng chiều cao để chứa thanh tiêu đề
+    draggableFrame.Position = UDim2.new(0.5, -200, 0.5, -115) -- Điều chỉnh vị trí
     draggableFrame.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
     draggableFrame.Active = true
-    draggableFrame.Draggable = true -- Cho phép kéo đi lại
     draggableFrame.Parent = screenGui
 
-    -- Tạo tên nhỏ "Master Manh Hub" ở góc trên bên trái của GUI
+    -- Tạo nút hình ảnh để hiển thị lại GUI
+    local showButton = Instance.new("ImageButton")
+    showButton.Size = UDim2.new(0, 50, 0, 50) -- Giảm kích thước nút
+    showButton.Position = UDim2.new(0.5, -25, 0, 0) -- Điều chỉnh vị trí cho phù hợp với kích thước mới
+    showButton.BackgroundColor3 = Color3.fromRGB(0, 0, 255) -- Màu xanh lam
+    showButton.Visible = false
+    showButton.Parent = screenGui
+
+    -- Biến để lưu trữ trạng thái kéo
+    local dragging = false
+    local dragInput, dragStart, startPos
+
+    -- Hàm để cập nhật vị trí khi kéo
+    local function updateInput(input)
+        local delta = input.Position - dragStart
+        if draggableFrame.Visible then
+            draggableFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+        elseif showButton.Visible then
+            showButton.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+        end
+    end
+
+    -- Tạo thanh tiêu đề
+    local titleBar = Instance.new("Frame")
+    titleBar.Size = UDim2.new(1, 0, 0, 30)
+    titleBar.Position = UDim2.new(0, 0, 0, 0)
+    titleBar.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+    titleBar.Active = true -- Cho phép kéo thả
+    titleBar.Parent = draggableFrame
+
+    -- Di chuyển tên nhỏ "Master Manh Hub" vào thanh tiêu đề
     local nameLabel = Instance.new("TextLabel")
     nameLabel.Size = UDim2.new(0, 100, 0, 20)
-    nameLabel.Position = UDim2.new(0, 10, 0, 10) -- Vị trí ở góc trên bên trái của GUI
+    nameLabel.Position = UDim2.new(0, 10, 0, 5) -- Điều chỉnh vị trí trong thanh tiêu đề
     nameLabel.Text = "Master Manh Hub"
     nameLabel.TextSize = 10
     nameLabel.TextColor3 = Color3.fromRGB(255, 255, 255) -- Màu chữ trắng
     nameLabel.BackgroundTransparency = 1 -- Trong suốt nền
-    nameLabel.Parent = draggableFrame
+    nameLabel.Parent = titleBar -- Đặt nameLabel vào titleBar
+
+    -- Tạo nút thu nhỏ
+    local minimizeButton = Instance.new("TextButton")
+    minimizeButton.Size = UDim2.new(0, 30, 0, 30)
+    minimizeButton.Position = UDim2.new(1, -40, 0, 0)
+    minimizeButton.Text = "-"
+    minimizeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+    minimizeButton.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
+    minimizeButton.AutoButtonColor = false -- Ngăn không cho nút nháy màu khi chạm
+    minimizeButton.Parent = titleBar
+
+    -- Hàm để thu nhỏ GUI
+    local function minimizeGUI()
+        draggableFrame.Visible = false
+        showButton.Visible = true
+    end
+
+    -- Hàm để hiển thị lại GUI
+    local function showGUI()
+        draggableFrame.Visible = true
+        showButton.Visible = false
+    end
+
+    -- Kết nối sự kiện cho nút thu nhỏ
+    minimizeButton.MouseButton1Click:Connect(minimizeGUI)
+
+    -- Kết nối sự kiện cho nút hình ảnh để hiển thị lại GUI
+    showButton.MouseButton1Click:Connect(showGUI)
+
+    -- Kết nối sự kiện cho bắt đầu kéo từ nút hình ảnh
+    showButton.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = true
+            dragStart = input.Position
+            startPos = showButton.Position
+
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    dragging = false
+                end
+            end)
+        end
+    end)
+
+    -- Kết nối sự kiện cho khi kéo
+    showButton.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement then
+            dragInput = input
+        end
+    end)
+
+    -- Cập nhật vị trí khi kéo
+    game:GetService("UserInputService").InputChanged:Connect(function(input)
+        if input == dragInput and dragging then
+            updateInput(input)
+        end
+    end)
 
     -- Tạo gạt nút cho Xuyên Tường
     local wallPassLabel = Instance.new("TextLabel")
     wallPassLabel.Size = UDim2.new(0, 100, 0, 50)
-    wallPassLabel.Position = UDim2.new(0, 10, 0, 40)
+    wallPassLabel.Position = UDim2.new(0, 10, 0, 10) -- Điều chỉnh vị trí
     wallPassLabel.Text = "Xuyên Tường"
     wallPassLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
     wallPassLabel.BackgroundTransparency = 1
@@ -52,7 +138,7 @@ local function createGUI()
 
     local wallPassSwitch = Instance.new("Frame")
     wallPassSwitch.Size = UDim2.new(0, 50, 0, 25)
-    wallPassSwitch.Position = UDim2.new(0, 120, 0, 40)
+    wallPassSwitch.Position = UDim2.new(0, 120, 0, 22) -- Điều chỉnh vị trí để thẳng hàng
     wallPassSwitch.BackgroundColor3 = Color3.fromRGB(255, 0, 0) -- Màu đỏ cho không kích hoạt
     wallPassSwitch.Parent = draggableFrame
 
@@ -65,7 +151,7 @@ local function createGUI()
     -- Tạo gạt nút cho Tốc Độ
     local speedLabel = Instance.new("TextLabel")
     speedLabel.Size = UDim2.new(0, 100, 0, 50)
-    speedLabel.Position = UDim2.new(0, 10, 0, 100)
+    speedLabel.Position = UDim2.new(0, 10, 0, 70) -- Điều chỉnh vị trí
     speedLabel.Text = "Tốc Độ"
     speedLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
     speedLabel.BackgroundTransparency = 1
@@ -73,7 +159,7 @@ local function createGUI()
 
     local speedSwitch = Instance.new("Frame")
     speedSwitch.Size = UDim2.new(0, 50, 0, 25)
-    speedSwitch.Position = UDim2.new(0, 120, 0, 100)
+    speedSwitch.Position = UDim2.new(0, 120, 0, 82) -- Điều chỉnh vị trí để thẳng hàng
     speedSwitch.BackgroundColor3 = Color3.fromRGB(255, 0, 0) -- Màu đỏ cho không kích hoạt
     speedSwitch.Parent = draggableFrame
 
@@ -89,7 +175,7 @@ local function createGUI()
     -- Tạo gạt nút cho Hiển thị vị trí
     local displayPositionLabel = Instance.new("TextLabel")
     displayPositionLabel.Size = UDim2.new(0, 100, 0, 50)
-    displayPositionLabel.Position = UDim2.new(0, 10, 0, 160)
+    displayPositionLabel.Position = UDim2.new(0, 10, 0, 130) -- Điều chỉnh vị trí
     displayPositionLabel.Text = "Hiển thị vị trí"
     displayPositionLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
     displayPositionLabel.BackgroundTransparency = 1
@@ -97,7 +183,7 @@ local function createGUI()
 
     local displayPositionSwitch = Instance.new("Frame")
     displayPositionSwitch.Size = UDim2.new(0, 50, 0, 25)
-    displayPositionSwitch.Position = UDim2.new(0, 120, 0, 160)
+    displayPositionSwitch.Position = UDim2.new(0, 120, 0, 142) -- Điều chỉnh vị trí để thẳng hàng
     displayPositionSwitch.BackgroundColor3 = Color3.fromRGB(255, 0, 0) -- Màu đỏ cho không kích hoạt
     displayPositionSwitch.Parent = draggableFrame
 
@@ -109,6 +195,30 @@ local function createGUI()
 
     -- Biến trạng thái hiển thị vị trí
     local displayPositionEnabled = false
+
+    -- Tạo gạt nút cho Bay
+    local flyLabel = Instance.new("TextLabel")
+    flyLabel.Size = UDim2.new(0, 100, 0, 50)
+    flyLabel.Position = UDim2.new(0, 10, 0, 190) -- Điều chỉnh vị trí
+    flyLabel.Text = "Bay"
+    flyLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    flyLabel.BackgroundTransparency = 1
+    flyLabel.Parent = draggableFrame
+
+    local flySwitch = Instance.new("Frame")
+    flySwitch.Size = UDim2.new(0, 50, 0, 25)
+    flySwitch.Position = UDim2.new(0, 120, 0, 202) -- Điều chỉnh vị trí để thẳng hàng
+    flySwitch.BackgroundColor3 = Color3.fromRGB(255, 0, 0) -- Màu đỏ cho không kích hoạt
+    flySwitch.Parent = draggableFrame
+
+    local flyToggle = Instance.new("Frame")
+    flyToggle.Size = UDim2.new(0, 25, 0, 25)
+    flyToggle.Position = UDim2.new(0, 0, 0, 0)
+    flyToggle.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    flyToggle.Parent = flySwitch
+
+    -- Biến trạng thái bay
+    local flyEnabled = false
 
     -- Hàm để bật/tắt xuyên tường
     local function toggleWallPass()
@@ -174,6 +284,24 @@ local function createGUI()
         end
     end
 
+    -- Hàm để bật/tắt bay
+    local function toggleFly()
+        flyEnabled = not flyEnabled
+        if flyEnabled then
+            flySwitch.BackgroundColor3 = Color3.fromRGB(0, 255, 0) -- Màu xanh lá cho kích hoạt
+            flyToggle.Position = UDim2.new(0, 25, 0, 0) -- Di chuyển gạt nút
+            if character:FindFirstChild("Humanoid") then
+                character.Humanoid:ChangeState(Enum.HumanoidStateType.Physics)
+            end
+        else
+            flySwitch.BackgroundColor3 = Color3.fromRGB(255, 0, 0) -- Màu đỏ cho không kích hoạt
+            flyToggle.Position = UDim2.new(0, 0, 0, 0) -- Di chuyển gạt nút
+            if character:FindFirstChild("Humanoid") then
+                character.Humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
+            end
+        end
+    end
+
     -- Hàm để cập nhật danh sách người chơi
     local function updatePlayerList()
         -- Lấy vị trí của người chơi hiện tại
@@ -236,10 +364,65 @@ local function createGUI()
         end
     end)
 
+    -- Kết nối sự kiện cho gạt nút bay
+    flySwitch.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            toggleFly()
+        end
+    end)
+
     -- Cập nhật danh sách người chơi mỗi khi có người chơi di chuyển
     game:GetService("RunService").Stepped:Connect(function()
         if displayPositionEnabled then
             updatePlayerList()
+        end
+    end)
+
+    -- Thêm tính năng cuộn cho GUI
+    local scrollingFrame = Instance.new("ScrollingFrame")
+    scrollingFrame.Size = UDim2.new(1, 0, 1, -30) -- Trừ đi chiều cao của thanh tiêu đề
+    scrollingFrame.Position = UDim2.new(0, 0, 0, 30) -- Đặt dưới thanh tiêu đề
+    scrollingFrame.CanvasSize = UDim2.new(0, 0, 1.5, 0) -- Tăng kích thước canvas để có thể cuộn
+    scrollingFrame.ScrollBarThickness = 10
+    scrollingFrame.Parent = draggableFrame
+
+    -- Di chuyển các phần tử vào ScrollingFrame
+    -- nameLabel.Parent = scrollingFrame -- Không di chuyển nameLabel vào scrollingFrame
+    wallPassLabel.Parent = scrollingFrame
+    wallPassSwitch.Parent = scrollingFrame
+    speedLabel.Parent = scrollingFrame
+    speedSwitch.Parent = scrollingFrame
+    displayPositionLabel.Parent = scrollingFrame
+    displayPositionSwitch.Parent = scrollingFrame
+    flyLabel.Parent = scrollingFrame
+    flySwitch.Parent = scrollingFrame
+
+    -- Kết nối sự kiện cho bắt đầu kéo từ thanh tiêu đề
+    titleBar.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = true
+            dragStart = input.Position
+            startPos = draggableFrame.Position
+
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    dragging = false
+                end
+            end)
+        end
+    end)
+
+    -- Kết nối sự kiện cho khi kéo
+    titleBar.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement then
+            dragInput = input
+        end
+    end)
+
+    -- Cập nhật vị trí khi kéo
+    game:GetService("UserInputService").InputChanged:Connect(function(input)
+        if input == dragInput and dragging then
+            updateInput(input)
         end
     end)
 end
