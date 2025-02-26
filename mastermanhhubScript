@@ -293,6 +293,61 @@ local function createGUI()
             if character:FindFirstChild("Humanoid") then
                 character.Humanoid:ChangeState(Enum.HumanoidStateType.Physics)
             end
+
+            -- Thêm sự kiện để điều khiển bay
+            local userInputService = game:GetService("UserInputService")
+            local runService = game:GetService("RunService")
+
+            local flying = true
+            local flySpeed = 50 -- Tốc độ bay
+
+            local function fly()
+                if not flying then return end
+                local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+                if humanoidRootPart then
+                    local camera = workspace.CurrentCamera
+                    local moveDirection = Vector3.new()
+
+                    -- Tiến và lùi theo hướng camera
+                    if userInputService:IsKeyDown(Enum.KeyCode.W) then
+                        moveDirection = moveDirection + camera.CFrame.LookVector
+                    end
+                    if userInputService:IsKeyDown(Enum.KeyCode.S) then
+                        moveDirection = moveDirection - camera.CFrame.LookVector
+                    end
+
+                    -- Ngang và dọc theo hướng camera
+                    if userInputService:IsKeyDown(Enum.KeyCode.A) then
+                        moveDirection = moveDirection - camera.CFrame.RightVector
+                    end
+                    if userInputService:IsKeyDown(Enum.KeyCode.D) then
+                        moveDirection = moveDirection + camera.CFrame.RightVector
+                    end
+
+                    -- Cập nhật hướng nhân vật theo hướng đang nhìn
+                    if moveDirection.Magnitude > 0 then
+                        humanoidRootPart.CFrame = CFrame.new(humanoidRootPart.Position, humanoidRootPart.Position + moveDirection)
+                    end
+
+                    -- Đảm bảo rằng moveDirection không phải là vector không
+                    if moveDirection.Magnitude > 0 then
+                        humanoidRootPart.Velocity = moveDirection.Unit * flySpeed
+                    else
+                        humanoidRootPart.Velocity = Vector3.new(0, 0, 0) -- Dừng lại khi không có đầu vào
+                    end
+                end
+            end
+
+            local flyConnection
+            flyConnection = runService.RenderStepped:Connect(fly)
+
+            -- Ngắt kết nối khi tắt bay
+            flySwitch.InputBegan:Connect(function(input)
+                if input.UserInputType == Enum.UserInputType.MouseButton1 then
+                    flying = false
+                    flyConnection:Disconnect()
+                end
+            end)
         else
             flySwitch.BackgroundColor3 = Color3.fromRGB(255, 0, 0) -- Màu đỏ cho không kích hoạt
             flyToggle.Position = UDim2.new(0, 0, 0, 0) -- Di chuyển gạt nút
