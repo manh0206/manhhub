@@ -287,11 +287,19 @@ local function createGUI()
     -- Hàm để bật/tắt bay
     local function toggleFly()
         flyEnabled = not flyEnabled
+        local anchorPart -- Khối được tạo dưới nhân vật
+
         if flyEnabled then
             flySwitch.BackgroundColor3 = Color3.fromRGB(0, 255, 0) -- Màu xanh lá cho kích hoạt
             flyToggle.Position = UDim2.new(0, 25, 0, 0) -- Di chuyển gạt nút
             if character:FindFirstChild("Humanoid") then
                 character.Humanoid:ChangeState(Enum.HumanoidStateType.Physics)
+            end
+
+            -- Xóa khối khi bắt đầu bay
+            if anchorPart then
+                anchorPart:Destroy()
+                anchorPart = nil
             end
 
             -- Thêm sự kiện để điều khiển bay
@@ -332,8 +340,27 @@ local function createGUI()
                     -- Đảm bảo rằng moveDirection không phải là vector không
                     if moveDirection.Magnitude > 0 then
                         humanoidRootPart.Velocity = moveDirection.Unit * flySpeed
+                        -- Xóa khối khi đang di chuyển
+                        if anchorPart then
+                            anchorPart:Destroy()
+                            anchorPart = nil
+                        end
                     else
                         humanoidRootPart.Velocity = Vector3.new(0, 0, 0) -- Dừng lại khi không có đầu vào
+                        -- Tạo khối dưới nhân vật khi không di chuyển
+                        if not anchorPart then
+                            anchorPart = Instance.new("Part")
+                            anchorPart.Size = Vector3.new(5, 1, 5) -- Kích thước khối
+                            anchorPart.Anchored = true
+                            anchorPart.Position = humanoidRootPart.Position - Vector3.new(0, 3, 0) -- Đặt dưới nhân vật
+                            anchorPart.Transparency = 1 -- Làm cho khối tàng hình
+                            anchorPart.Parent = workspace
+                            
+                            -- Đặt trạng thái nhân vật đứng dậy
+                            if character:FindFirstChild("Humanoid") then
+                                character.Humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
+                            end
+                        end
                     end
                 end
             end
@@ -346,6 +373,11 @@ local function createGUI()
                 if input.UserInputType == Enum.UserInputType.MouseButton1 then
                     flying = false
                     flyConnection:Disconnect()
+                    -- Xóa khối khi tắt bay
+                    if anchorPart then
+                        anchorPart:Destroy()
+                        anchorPart = nil
+                    end
                 end
             end)
         else
@@ -353,6 +385,12 @@ local function createGUI()
             flyToggle.Position = UDim2.new(0, 0, 0, 0) -- Di chuyển gạt nút
             if character:FindFirstChild("Humanoid") then
                 character.Humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
+            end
+
+            -- Xóa khối khi tắt bay
+            if anchorPart then
+                anchorPart:Destroy()
+                anchorPart = nil
             end
         end
     end
