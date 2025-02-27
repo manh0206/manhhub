@@ -220,6 +220,30 @@ local function createGUI()
     -- Biến trạng thái bay
     local flyEnabled = false
 
+    -- Tạo gạt nút cho Nhảy Cao
+    local jumpLabel = Instance.new("TextLabel")
+    jumpLabel.Size = UDim2.new(0, 100, 0, 50)
+    jumpLabel.Position = UDim2.new(0, 10, 0, 250) -- Điều chỉnh vị trí
+    jumpLabel.Text = "Nhảy Cao"
+    jumpLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    jumpLabel.BackgroundTransparency = 1
+    jumpLabel.Parent = draggableFrame
+
+    local jumpSwitch = Instance.new("Frame")
+    jumpSwitch.Size = UDim2.new(0, 50, 0, 25)
+    jumpSwitch.Position = UDim2.new(0, 120, 0, 262) -- Điều chỉnh vị trí để thẳng hàng
+    jumpSwitch.BackgroundColor3 = Color3.fromRGB(255, 0, 0) -- Màu đỏ cho không kích hoạt
+    jumpSwitch.Parent = draggableFrame
+
+    local jumpToggle = Instance.new("Frame")
+    jumpToggle.Size = UDim2.new(0, 25, 0, 25)
+    jumpToggle.Position = UDim2.new(0, 0, 0, 0)
+    jumpToggle.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    jumpToggle.Parent = jumpSwitch
+
+    -- Biến trạng thái nhảy cao
+    local jumpEnabled = false
+
     -- Hàm để bật/tắt xuyên tường
     local function toggleWallPass()
         wallPassEnabled = not wallPassEnabled
@@ -395,6 +419,26 @@ local function createGUI()
         end
     end
 
+    -- Hàm để bật/tắt nhảy cao
+    local function toggleJump()
+        jumpEnabled = not jumpEnabled
+        if jumpEnabled then
+            -- Tăng chiều cao nhảy
+            if character:FindFirstChild("Humanoid") then
+                character.Humanoid.JumpPower = 100 -- Tăng chiều cao nhảy
+            end
+            jumpSwitch.BackgroundColor3 = Color3.fromRGB(0, 255, 0) -- Màu xanh lá cho kích hoạt
+            jumpToggle.Position = UDim2.new(0, 25, 0, 0) -- Di chuyển gạt nút
+        else
+            -- Giảm chiều cao nhảy về mức bình thường
+            if character:FindFirstChild("Humanoid") then
+                character.Humanoid.JumpPower = 50 -- Chiều cao nhảy mặc định
+            end
+            jumpSwitch.BackgroundColor3 = Color3.fromRGB(255, 0, 0) -- Màu đỏ cho không kích hoạt
+            jumpToggle.Position = UDim2.new(0, 0, 0, 0) -- Di chuyển gạt nút
+        end
+    end
+
     -- Hàm để cập nhật danh sách người chơi
     local function updatePlayerList()
         -- Lấy vị trí của người chơi hiện tại
@@ -464,6 +508,13 @@ local function createGUI()
         end
     end)
 
+    -- Kết nối sự kiện cho gạt nút nhảy cao
+    jumpSwitch.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            toggleJump()
+        end
+    end)
+
     -- Cập nhật danh sách người chơi mỗi khi có người chơi di chuyển
     game:GetService("RunService").Stepped:Connect(function()
         if displayPositionEnabled then
@@ -489,6 +540,8 @@ local function createGUI()
     displayPositionSwitch.Parent = scrollingFrame
     flyLabel.Parent = scrollingFrame
     flySwitch.Parent = scrollingFrame
+    jumpLabel.Parent = scrollingFrame
+    jumpSwitch.Parent = scrollingFrame
 
     -- Kết nối sự kiện cho bắt đầu kéo từ thanh tiêu đề
     titleBar.InputBegan:Connect(function(input)
