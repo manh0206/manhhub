@@ -234,10 +234,10 @@ local function createGUI()
             displayPositionSwitch.BackgroundColor3 = Color3.fromRGB(255, 0, 0) -- Màu đỏ cho không kích hoạt
             displayPositionToggle.Position = UDim2.new(0, 0, 0, 0) -- Di chuyển gạt nút
 
-            -- Xóa tất cả BillboardGui khi tắt hiển thị vị trí
-            for _, distanceLabel in pairs(playerBillboards) do
-                if distanceLabel.Parent then
-                    distanceLabel.Parent:Destroy()
+            -- Xóa hoặc ẩn tất cả BillboardGui khi tắt hiển thị vị trí
+            for _, billboard in pairs(playerBillboards) do
+                if billboard.Parent then
+                    billboard:Destroy() -- Xóa BillboardGui
                 end
             end
             playerBillboards = {}
@@ -373,6 +373,41 @@ local function createGUI()
             toggleFly()
         end
     end)
+
+    -- Hàm để cập nhật danh sách người chơi và hiển thị vị trí
+    local function updatePlayerList()
+        for _, player in pairs(game.Players:GetPlayers()) do
+            if player ~= game.Players.LocalPlayer then
+                local character = player.Character
+                if character and character:FindFirstChild("HumanoidRootPart") then
+                    local billboard = playerBillboards[player]
+                    if not billboard then
+                        -- Tạo BillboardGui mới nếu chưa có
+                        billboard = Instance.new("BillboardGui")
+                        billboard.Size = UDim2.new(0, 100, 0, 50)
+                        billboard.Adornee = character.HumanoidRootPart
+                        billboard.Parent = character
+                        billboard.AlwaysOnTop = true -- Luôn hiển thị trên cùng
+                        playerBillboards[player] = billboard
+
+                        local textLabel = Instance.new("TextLabel")
+                        textLabel.Size = UDim2.new(1, 0, 1, 0)
+                        textLabel.BackgroundTransparency = 1
+                        textLabel.TextColor3 = Color3.new(1, 1, 1)
+                        textLabel.Text = player.Name
+                        textLabel.Parent = billboard
+                    end
+
+                    -- Tính toán khoảng cách
+                    local myCharacter = game.Players.LocalPlayer.Character
+                    if myCharacter and myCharacter:FindFirstChild("HumanoidRootPart") then
+                        local distance = (myCharacter.HumanoidRootPart.Position - character.HumanoidRootPart.Position).Magnitude
+                        billboard.TextLabel.Text = string.format("%s: %.2f m", player.Name, distance)
+                    end
+                end
+            end
+        end
+    end
 
     -- Cập nhật danh sách người chơi mỗi khi có người chơi di chuyển
     game:GetService("RunService").Stepped:Connect(function()
