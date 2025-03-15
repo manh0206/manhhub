@@ -10,6 +10,10 @@ local character = player.Character or player.CharacterAdded:Wait()
 -- Tạo bảng để lưu trữ BillboardGui cho mỗi người chơi
 local playerBillboards = {}
 
+-- Biến để lưu trữ trạng thái kéo cho thanh trượt
+local draggingSpeed = false
+local draggingJump = false
+
 -- Hàm để tạo GUI và nút
 local function createGUI()
     -- Xóa GUI cũ nếu có
@@ -148,34 +152,10 @@ local function createGUI()
     wallPassToggle.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
     wallPassToggle.Parent = wallPassSwitch
 
-    -- Tạo gạt nút cho Tốc Độ
-    local speedLabel = Instance.new("TextLabel")
-    speedLabel.Size = UDim2.new(0, 100, 0, 50)
-    speedLabel.Position = UDim2.new(0, 10, 0, 70) -- Điều chỉnh vị trí
-    speedLabel.Text = "Tốc Độ"
-    speedLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-    speedLabel.BackgroundTransparency = 1
-    speedLabel.Parent = draggableFrame
-
-    local speedSwitch = Instance.new("Frame")
-    speedSwitch.Size = UDim2.new(0, 50, 0, 25)
-    speedSwitch.Position = UDim2.new(0, 120, 0, 82) -- Điều chỉnh vị trí để thẳng hàng
-    speedSwitch.BackgroundColor3 = Color3.fromRGB(255, 0, 0) -- Màu đỏ cho không kích hoạt
-    speedSwitch.Parent = draggableFrame
-
-    local speedToggle = Instance.new("Frame")
-    speedToggle.Size = UDim2.new(0, 25, 0, 25)
-    speedToggle.Position = UDim2.new(0, 0, 0, 0)
-    speedToggle.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-    speedToggle.Parent = speedSwitch
-
-    -- Biến trạng thái tốc độ
-    local speedEnabled = false
-
     -- Tạo gạt nút cho Hiển thị vị trí
     local displayPositionLabel = Instance.new("TextLabel")
     displayPositionLabel.Size = UDim2.new(0, 100, 0, 50)
-    displayPositionLabel.Position = UDim2.new(0, 10, 0, 130) -- Điều chỉnh vị trí
+    displayPositionLabel.Position = UDim2.new(0, 10, 0, 70) -- Điều chỉnh vị trí
     displayPositionLabel.Text = "Hiển thị vị trí"
     displayPositionLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
     displayPositionLabel.BackgroundTransparency = 1
@@ -183,7 +163,7 @@ local function createGUI()
 
     local displayPositionSwitch = Instance.new("Frame")
     displayPositionSwitch.Size = UDim2.new(0, 50, 0, 25)
-    displayPositionSwitch.Position = UDim2.new(0, 120, 0, 142) -- Điều chỉnh vị trí để thẳng hàng
+    displayPositionSwitch.Position = UDim2.new(0, 120, 0, 82) -- Điều chỉnh vị trí để thẳng hàng
     displayPositionSwitch.BackgroundColor3 = Color3.fromRGB(255, 0, 0) -- Màu đỏ cho không kích hoạt
     displayPositionSwitch.Parent = draggableFrame
 
@@ -199,7 +179,7 @@ local function createGUI()
     -- Tạo gạt nút cho Bay
     local flyLabel = Instance.new("TextLabel")
     flyLabel.Size = UDim2.new(0, 100, 0, 50)
-    flyLabel.Position = UDim2.new(0, 10, 0, 190) -- Điều chỉnh vị trí
+    flyLabel.Position = UDim2.new(0, 10, 0, 130) -- Điều chỉnh vị trí
     flyLabel.Text = "Bay"
     flyLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
     flyLabel.BackgroundTransparency = 1
@@ -207,7 +187,7 @@ local function createGUI()
 
     local flySwitch = Instance.new("Frame")
     flySwitch.Size = UDim2.new(0, 50, 0, 25)
-    flySwitch.Position = UDim2.new(0, 120, 0, 202) -- Điều chỉnh vị trí để thẳng hàng
+    flySwitch.Position = UDim2.new(0, 120, 0, 142) -- Điều chỉnh vị trí để thẳng hàng
     flySwitch.BackgroundColor3 = Color3.fromRGB(255, 0, 0) -- Màu đỏ cho không kích hoạt
     flySwitch.Parent = draggableFrame
 
@@ -219,30 +199,6 @@ local function createGUI()
 
     -- Biến trạng thái bay
     local flyEnabled = false
-
-    -- Tạo gạt nút cho Nhảy Cao
-    local jumpLabel = Instance.new("TextLabel")
-    jumpLabel.Size = UDim2.new(0, 100, 0, 50)
-    jumpLabel.Position = UDim2.new(0, 10, 0, 250) -- Điều chỉnh vị trí
-    jumpLabel.Text = "Nhảy Cao"
-    jumpLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-    jumpLabel.BackgroundTransparency = 1
-    jumpLabel.Parent = draggableFrame
-
-    local jumpSwitch = Instance.new("Frame")
-    jumpSwitch.Size = UDim2.new(0, 50, 0, 25)
-    jumpSwitch.Position = UDim2.new(0, 120, 0, 262) -- Điều chỉnh vị trí để thẳng hàng
-    jumpSwitch.BackgroundColor3 = Color3.fromRGB(255, 0, 0) -- Màu đỏ cho không kích hoạt
-    jumpSwitch.Parent = draggableFrame
-
-    local jumpToggle = Instance.new("Frame")
-    jumpToggle.Size = UDim2.new(0, 25, 0, 25)
-    jumpToggle.Position = UDim2.new(0, 0, 0, 0)
-    jumpToggle.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-    jumpToggle.Parent = jumpSwitch
-
-    -- Biến trạng thái nhảy cao
-    local jumpEnabled = false
 
     -- Hàm để bật/tắt xuyên tường
     local function toggleWallPass()
@@ -265,26 +221,6 @@ local function createGUI()
             end
             wallPassSwitch.BackgroundColor3 = Color3.fromRGB(255, 0, 0) -- Màu đỏ cho không kích hoạt
             wallPassToggle.Position = UDim2.new(0, 0, 0, 0) -- Di chuyển gạt nút
-        end
-    end
-
-    -- Hàm để bật/tắt tốc độ
-    local function toggleSpeed()
-        speedEnabled = not speedEnabled
-        if speedEnabled then
-            -- Tăng tốc độ
-            if character:FindFirstChild("Humanoid") then
-                character.Humanoid.WalkSpeed = 50
-            end
-            speedSwitch.BackgroundColor3 = Color3.fromRGB(0, 255, 0) -- Màu xanh lá cho kích hoạt
-            speedToggle.Position = UDim2.new(0, 25, 0, 0) -- Di chuyển gạt nút
-        else
-            -- Giảm tốc độ về mức bình thường
-            if character:FindFirstChild("Humanoid") then
-                character.Humanoid.WalkSpeed = 16 -- Tốc độ mặc định
-            end
-            speedSwitch.BackgroundColor3 = Color3.fromRGB(255, 0, 0) -- Màu đỏ cho không kích hoạt
-            speedToggle.Position = UDim2.new(0, 0, 0, 0) -- Di chuyển gạt nút
         end
     end
 
@@ -331,8 +267,6 @@ local function createGUI()
             local runService = game:GetService("RunService")
 
             local flying = true
-            local flySpeed = 50 -- Tốc độ bay
-
             local function fly()
                 if not flying then return end
                 local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
@@ -363,7 +297,7 @@ local function createGUI()
 
                     -- Đảm bảo rằng moveDirection không phải là vector không
                     if moveDirection.Magnitude > 0 then
-                        humanoidRootPart.Velocity = moveDirection.Unit * flySpeed
+                        humanoidRootPart.Velocity = moveDirection.Unit * character.Humanoid.WalkSpeed
                         -- Xóa khối khi đang di chuyển
                         if anchorPart then
                             anchorPart:Destroy()
@@ -419,78 +353,10 @@ local function createGUI()
         end
     end
 
-    -- Hàm để bật/tắt nhảy cao
-    local function toggleJump()
-        jumpEnabled = not jumpEnabled
-        if jumpEnabled then
-            -- Tăng chiều cao nhảy
-            if character:FindFirstChild("Humanoid") then
-                character.Humanoid.JumpPower = 100 -- Tăng chiều cao nhảy
-            end
-            jumpSwitch.BackgroundColor3 = Color3.fromRGB(0, 255, 0) -- Màu xanh lá cho kích hoạt
-            jumpToggle.Position = UDim2.new(0, 25, 0, 0) -- Di chuyển gạt nút
-        else
-            -- Giảm chiều cao nhảy về mức bình thường
-            if character:FindFirstChild("Humanoid") then
-                character.Humanoid.JumpPower = 50 -- Chiều cao nhảy mặc định
-            end
-            jumpSwitch.BackgroundColor3 = Color3.fromRGB(255, 0, 0) -- Màu đỏ cho không kích hoạt
-            jumpToggle.Position = UDim2.new(0, 0, 0, 0) -- Di chuyển gạt nút
-        end
-    end
-
-    -- Hàm để cập nhật danh sách người chơi
-    local function updatePlayerList()
-        -- Lấy vị trí của người chơi hiện tại
-        local currentPlayerPosition = character:FindFirstChild("HumanoidRootPart") and character.HumanoidRootPart.Position
-
-        -- Duyệt qua tất cả người chơi
-        for _, otherPlayer in pairs(game.Players:GetPlayers()) do
-            if otherPlayer.Character and otherPlayer.Character:FindFirstChild("HumanoidRootPart") then
-                local position = otherPlayer.Character.HumanoidRootPart.Position
-                local playerName = otherPlayer.Name
-
-                -- Tính khoảng cách từ người chơi hiện tại đến người chơi khác
-                local distance = (currentPlayerPosition - position).Magnitude
-                local distanceInt = math.floor(distance) -- Làm tròn xuống để lấy số tự nhiên
-
-                -- Kiểm tra và tạo BillboardGui nếu chưa tồn tại
-                if not playerBillboards[otherPlayer] then
-                    local billboardGui = Instance.new("BillboardGui")
-                    billboardGui.Name = "DistanceGui"
-                    billboardGui.Size = UDim2.new(0, 60, 0, 30) -- Kích thước nhỏ hơn
-                    billboardGui.StudsOffset = Vector3.new(0, 3, 0)
-                    billboardGui.AlwaysOnTop = true
-                    billboardGui.Parent = otherPlayer.Character:FindFirstChild("Head")
-
-                    local distanceLabel = Instance.new("TextLabel")
-                    distanceLabel.Size = UDim2.new(1, 0, 1, 0)
-                    distanceLabel.BackgroundTransparency = 1
-                    distanceLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-                    distanceLabel.TextScaled = false
-                    distanceLabel.TextSize = 18 -- Tăng kích thước chữ
-                    distanceLabel.Font = Enum.Font.SourceSansBold -- Font đậm hơn
-                    distanceLabel.Parent = billboardGui
-
-                    playerBillboards[otherPlayer] = distanceLabel
-                end
-
-                -- Cập nhật khoảng cách trong BillboardGui
-                playerBillboards[otherPlayer].Text = string.format("%s: %d m", playerName, distanceInt)
-            end
-        end
-    end
-
     -- Kết nối sự kiện cho gạt nút
     wallPassSwitch.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 then
             toggleWallPass()
-        end
-    end)
-
-    speedSwitch.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            toggleSpeed()
         end
     end)
 
@@ -505,13 +371,6 @@ local function createGUI()
     flySwitch.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 then
             toggleFly()
-        end
-    end)
-
-    -- Kết nối sự kiện cho gạt nút nhảy cao
-    jumpSwitch.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            toggleJump()
         end
     end)
 
@@ -534,14 +393,10 @@ local function createGUI()
     -- nameLabel.Parent = scrollingFrame -- Không di chuyển nameLabel vào scrollingFrame
     wallPassLabel.Parent = scrollingFrame
     wallPassSwitch.Parent = scrollingFrame
-    speedLabel.Parent = scrollingFrame
-    speedSwitch.Parent = scrollingFrame
     displayPositionLabel.Parent = scrollingFrame
     displayPositionSwitch.Parent = scrollingFrame
     flyLabel.Parent = scrollingFrame
     flySwitch.Parent = scrollingFrame
-    jumpLabel.Parent = scrollingFrame
-    jumpSwitch.Parent = scrollingFrame
 
     -- Kết nối sự kiện cho bắt đầu kéo từ thanh tiêu đề
     titleBar.InputBegan:Connect(function(input)
@@ -569,6 +424,118 @@ local function createGUI()
     game:GetService("UserInputService").InputChanged:Connect(function(input)
         if input == dragInput and dragging then
             updateInput(input)
+        end
+    end)
+
+    -- Tạo thanh trượt cho Tốc độ
+    local speedLabel = Instance.new("TextLabel")
+    speedLabel.Size = UDim2.new(0, 100, 0, 50)
+    speedLabel.Position = UDim2.new(0, 10, 0, 190) -- Điều chỉnh vị trí
+    speedLabel.Text = "Tốc độ"
+    speedLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    speedLabel.BackgroundTransparency = 1
+    speedLabel.Parent = scrollingFrame
+
+    local speedSlider = Instance.new("Frame")
+    speedSlider.Size = UDim2.new(0, 150, 0, 10)
+    speedSlider.Position = UDim2.new(0, 120, 0, 205) -- Điều chỉnh vị trí để thẳng hàng
+    speedSlider.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
+    speedSlider.Parent = scrollingFrame
+
+    local speedValue = Instance.new("TextLabel")
+    speedValue.Size = UDim2.new(0, 50, 0, 20)
+    speedValue.Position = UDim2.new(0, 280, 0, 190) -- Điều chỉnh vị trí
+    speedValue.Text = "16" -- Giá trị mặc định
+    speedValue.TextColor3 = Color3.fromRGB(255, 255, 255)
+    speedValue.BackgroundTransparency = 1
+    speedValue.Parent = scrollingFrame
+
+    local speedHandle = Instance.new("Frame")
+    speedHandle.Size = UDim2.new(0, 10, 0, 20)
+    speedHandle.Position = UDim2.new(0, 0, 0, -5)
+    speedHandle.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    speedHandle.Parent = speedSlider
+
+    -- Tạo thanh trượt cho Nhảy cao
+    local jumpLabel = Instance.new("TextLabel")
+    jumpLabel.Size = UDim2.new(0, 100, 0, 50)
+    jumpLabel.Position = UDim2.new(0, 10, 0, 250) -- Điều chỉnh vị trí
+    jumpLabel.Text = "Nhảy cao"
+    jumpLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    jumpLabel.BackgroundTransparency = 1
+    jumpLabel.Parent = scrollingFrame
+
+    local jumpSlider = Instance.new("Frame")
+    jumpSlider.Size = UDim2.new(0, 150, 0, 10)
+    jumpSlider.Position = UDim2.new(0, 120, 0, 265) -- Điều chỉnh vị trí để thẳng hàng
+    jumpSlider.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
+    jumpSlider.Parent = scrollingFrame
+
+    local jumpValue = Instance.new("TextLabel")
+    jumpValue.Size = UDim2.new(0, 50, 0, 20)
+    jumpValue.Position = UDim2.new(0, 280, 0, 250) -- Điều chỉnh vị trí
+    jumpValue.Text = tostring(character.Humanoid.JumpPower) -- Giá trị mặc định
+    jumpValue.TextColor3 = Color3.fromRGB(255, 255, 255)
+    jumpValue.BackgroundTransparency = 1
+    jumpValue.Parent = scrollingFrame
+
+    local jumpHandle = Instance.new("Frame")
+    jumpHandle.Size = UDim2.new(0, 10, 0, 20)
+    jumpHandle.Position = UDim2.new(0, 0, 0, -5)
+    jumpHandle.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    jumpHandle.Parent = jumpSlider
+
+    -- Hàm để cập nhật giá trị khi kéo thanh trượt
+    local function updateSlider(input, slider, handle, minValue, maxValue, valueLabel)
+        local sliderSize = slider.AbsoluteSize.X
+        local position = math.clamp(input.Position.X - slider.AbsolutePosition.X, 0, sliderSize)
+        handle.Position = UDim2.new(0, position, 0, -5)
+        local value = math.floor(minValue + (position / sliderSize) * (maxValue - minValue))
+        valueLabel.Text = tostring(value)
+        return value
+    end
+
+    -- Kết nối sự kiện cho thanh trượt tốc độ
+    speedSlider.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            draggingSpeed = true
+            local speed = updateSlider(input, speedSlider, speedHandle, 16, 300, speedValue)
+            character.Humanoid.WalkSpeed = speed
+        end
+    end)
+
+    speedSlider.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            draggingSpeed = false
+        end
+    end)
+
+    speedSlider.InputChanged:Connect(function(input)
+        if draggingSpeed and input.UserInputType == Enum.UserInputType.MouseMovement then
+            local speed = updateSlider(input, speedSlider, speedHandle, 16, 300, speedValue)
+            character.Humanoid.WalkSpeed = speed
+        end
+    end)
+
+    -- Kết nối sự kiện cho thanh trượt nhảy cao
+    jumpSlider.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            draggingJump = true
+            local jumpPower = updateSlider(input, jumpSlider, jumpHandle, 50, 500, jumpValue)
+            character.Humanoid.JumpPower = jumpPower
+        end
+    end)
+
+    jumpSlider.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            draggingJump = false
+        end
+    end)
+
+    jumpSlider.InputChanged:Connect(function(input)
+        if draggingJump and input.UserInputType == Enum.UserInputType.MouseMovement then
+            local jumpPower = updateSlider(input, jumpSlider, jumpHandle, 50, 500, jumpValue)
+            character.Humanoid.JumpPower = jumpPower
         end
     end)
 end
