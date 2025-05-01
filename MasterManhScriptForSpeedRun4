@@ -1,0 +1,262 @@
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+
+-- Tạo GUI
+local player = Players.LocalPlayer
+local gui = Instance.new("ScreenGui")
+gui.Name = "AutoFarmGUI"
+gui.Parent = player.PlayerGui
+
+-- Tạo frame chính
+local mainFrame = Instance.new("Frame")
+mainFrame.Size = UDim2.new(0, 200, 0, 50)
+mainFrame.Position = UDim2.new(0.5, -100, 0, 10)
+mainFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+mainFrame.BorderSizePixel = 0
+mainFrame.Active = true -- Cho phép kéo
+mainFrame.Draggable = true -- Cho phép kéo
+mainFrame.Parent = gui
+
+-- Tạo nút bật/tắt
+local toggleButton = Instance.new("TextButton")
+toggleButton.Size = UDim2.new(0.9, 0, 0.8, 0)
+toggleButton.Position = UDim2.new(0.05, 0, 0.1, 0)
+toggleButton.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+toggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+toggleButton.Text = "BẮT ĐẦU AUTO FARM"
+toggleButton.Font = Enum.Font.GothamBold
+toggleButton.TextSize = 14
+toggleButton.Parent = mainFrame
+
+-- Biến trạng thái
+local isRunning = false
+local character = player.Character or player.CharacterAdded:Wait()
+player.CharacterAdded:Connect(function(newChar)
+    character = newChar
+end)
+
+-- Hiệu ứng nhấn nút
+local function animateButton(button)
+    local originalSize = button.Size
+    local originalPos = button.Position
+    
+    local tweenIn = TweenService:Create(button, TweenInfo.new(0.1), {
+        Size = originalSize - UDim2.new(0.05, 0, 0.05, 0),
+        Position = originalPos + UDim2.new(0.025, 0, 0.025, 0)
+    })
+    
+    local tweenOut = TweenService:Create(button, TweenInfo.new(0.1), {
+        Size = originalSize,
+        Position = originalPos
+    })
+    
+    tweenIn:Play()
+    tweenIn.Completed:Wait()
+    tweenOut:Play()
+end
+
+-- Hàm xác định màn hiện tại
+local function detectCurrentLevel(levelsFolder)
+    if levelsFolder:FindFirstChild("RainbowRun") then
+        return 45
+    end
+    
+    for i = 44, 1, -1 do
+        if levelsFolder:FindFirstChild(tostring(i)) then
+            return i
+        end
+    end
+    
+    return 1
+end
+
+-- Hàm lấy model level
+local function getLevelModel(levelsFolder, levelNum)
+    if levelNum <= 44 then
+        return levelsFolder:FindFirstChild(tostring(levelNum))
+    elseif levelNum == 45 then
+        return levelsFolder:FindFirstChild("RainbowRun")
+    end
+    return nil
+end
+
+-- Hàm dịch chuyển đến Collectibles/Model
+local function teleportToCollectibles(levelModel, levelNum)
+    if not levelModel or not levelModel:IsA("Model") then return false end
+    
+    local map = levelModel:FindFirstChild("Map")
+    if not map or not map:IsA("Model") then return false end
+
+    local nestedLevels = map:FindFirstChild("Levels")
+    if not nestedLevels or not nestedLevels:IsA("Folder") then return false end
+
+    local innerModel = nestedLevels:FindFirstChild("1")
+    if not innerModel or not innerModel:IsA("Model") then return false end
+
+    local collectibles = innerModel:FindFirstChild("Collectibles")
+    if not collectibles or not collectibles:IsA("Folder") then return false end
+
+    local targetModel = collectibles:FindFirstChild("Model")
+    if not targetModel or not targetModel:IsA("Model") then return false end
+
+    if not targetModel.PrimaryPart then
+        for _, part in ipairs(targetModel:GetDescendants()) do
+            if part:IsA("BasePart") then
+                pcall(function() targetModel.PrimaryPart = part end)
+                break
+            end
+        end
+    end
+
+    if not targetModel.PrimaryPart then return false end
+
+    while isRunning and targetModel and targetModel.Parent and targetModel.PrimaryPart do
+        if character and character.PrimaryPart then
+            pcall(function()
+                character:PivotTo(targetModel.PrimaryPart.CFrame * CFrame.new(0, 5, 0))
+            end)
+            toggleButton.Text = "AUTO FARMING... MÀN "..(levelNum == 45 and "RAINBOW" or levelNum)
+        end
+        task.wait(0.08)
+    end
+    
+    return true
+end
+
+-- Hàm fallback đến Checkpoint
+local function fallbackToCheckpoint(levelModel, levelNum)
+    if not levelModel or not levelModel:IsA("Model") then return false end
+    
+    local map = levelModel:FindFirstChild("Map")
+    if not map or not map:IsA("Model") then return false end
+
+    local nestedLevels = map:FindFirstChild("Levels")
+    if not nestedLevels or not nestedLevels:IsA("Folder") then return false end
+
+    local innerModel = nestedLevels:FindFirstChild("1")
+    if not innerModel or not innerModel:IsA("Model") then return false end
+
+    local checkpoints = innerModel:FindFirstChild("Checkpoints")
+    if not checkpoints or not checkpoints:IsA("Folder") then return false end
+
+    local partName = (levelNum == 45) and "3" or (levelNum >= 30 and "2" or "3")
+    local part = checkpoints:FindFirstChild(partName)
+    if not part or not part:IsA("BasePart") then return false end
+
+    while isRunning and levelModel and levelModel.Parent do
+        if character and character.PrimaryPart then
+            pcall(function()
+                character:PivotTo(part.CFrame * CFrame.new(0, 5, 0))
+            end)
+            toggleButton.Text = "FALLBACK... MÀN "..(levelNum == 45 and "RAINBOW" or levelNum)
+        end
+        task.wait(0.08)
+    end
+    
+    return true
+end
+
+-- Hàm chờ chuyển level
+local function waitForNextLevel(levelsFolder, currentLevel)
+    local nextLevel = currentLevel + 1
+    while isRunning do
+        if currentLevel == 44 then
+            if not levelsFolder:FindFirstChild("44") and levelsFolder:FindFirstChild("RainbowRun") then
+                break
+            end
+        else
+            local currentExists = levelsFolder:FindFirstChild(currentLevel == 45 and "RainbowRun" or tostring(currentLevel))
+            local nextExists = levelsFolder:FindFirstChild(nextLevel == 45 and "RainbowRun" or tostring(nextLevel))
+            
+            if not currentExists and nextExists then
+                break
+            end
+        end
+        RunService.Heartbeat:Wait()
+    end
+end
+
+-- Hàm chính để auto farm
+local function startAutoFarm()
+    local levelsFolder = workspace:FindFirstChild("Levels")
+    if not levelsFolder then
+        warn("Không tìm thấy Levels folder")
+        return
+    end
+
+    local currentLevel = detectCurrentLevel(levelsFolder)
+    local maxLevels = 45
+
+    while isRunning and currentLevel <= maxLevels do
+        local levelName = currentLevel == 45 and "RainbowRun" or tostring(currentLevel)
+        local levelModel = getLevelModel(levelsFolder, currentLevel)
+        
+        if not levelModel then
+            break
+        end
+
+        if not teleportToCollectibles(levelModel, currentLevel) then
+            fallbackToCheckpoint(levelModel, currentLevel)
+        end
+
+        if currentLevel < maxLevels then
+            waitForNextLevel(levelsFolder, currentLevel)
+        end
+        currentLevel += 1
+    end
+
+    if isRunning then
+        toggleButton.Text = "HOÀN THÀNH!"
+        task.wait(2)
+        toggleButton.Text = "BẮT ĐẦU AUTO FARM"
+    end
+    isRunning = false
+end
+
+-- Kết nối sự kiện nút bấm
+toggleButton.MouseButton1Click:Connect(function()
+    animateButton(toggleButton)
+
+    if not isRunning then
+        isRunning = true
+        toggleButton.BackgroundColor3 = Color3.fromRGB(80, 160, 80)
+        toggleButton.Text = "ĐANG TẢI SCRIPT..."
+
+        -- Tải và chạy script bên ngoài
+        local success, err = pcall(function()
+            loadstring(game:HttpGet("https://raw.githubusercontent.com/manh0206/manhhub/refs/heads/main/fix1.lua"))()
+        end)
+
+        if not success then
+            warn("Không thể tải script bên ngoài:", err)
+            toggleButton.Text = "LỖI TẢI SCRIPT"
+            task.wait(2)
+            toggleButton.Text = "BẮT ĐẦU AUTO FARM"
+            toggleButton.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+            isRunning = false
+            return
+        end
+
+        toggleButton.Text = "ĐANG CHUẨN BỊ..."
+        task.spawn(startAutoFarm)
+    else
+        isRunning = false
+        toggleButton.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+        toggleButton.Text = "BẮT ĐẦU AUTO FARM"
+    end
+end)
+
+-- Tạo hiệu ứng khi di chuột vào nút
+toggleButton.MouseEnter:Connect(function()
+    if not isRunning then
+        toggleButton.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
+    end
+end)
+
+toggleButton.MouseLeave:Connect(function()
+    if not isRunning then
+        toggleButton.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+    end
+end)
