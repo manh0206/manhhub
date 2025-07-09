@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <title>Tra cứu Google đơn giản</title>
+  <!-- Font Awesome để lấy biểu tượng kính lúp -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+  <style>
+    /* Reset & bố cục tối giản */
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+      background: #f5f5f5;
+      gap: 24px;
+    }
+
+    h1 {
+      font-size: 1.75rem;
+      color: #202124;
+    }
+
+    .search-box {
+      display: flex;
+      border: 1px solid #dcdcdc;
+      border-radius: 4px;
+      overflow: hidden;
+      background: #fff;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+
+    .search-box input {
+      padding: 12px 16px;
+      font-size: 1rem;
+      width: 320px;
+      border: none;
+      outline: none;
+    }
+
+    .search-box button {
+      background: #4285F4; /* Màu xanh Google */
+      border: none;
+      color: #fff;
+      padding: 0 20px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .search-box button i {
+      font-size: 1.1rem;
+    }
+
+    #resultContainer {
+      width: 80%;
+      max-width: 960px;
+      height: 70vh;
+      display: none; /* Ẩn cho tới khi người dùng tìm kiếm */
+      border: 1px solid #dcdcdc;
+      border-radius: 4px;
+      background: #fff;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+      overflow: hidden;
+    }
+
+    #resultContainer iframe {
+      width: 100%;
+      height: 100%;
+      border: none;
+    }
+
+    /* Hiệu ứng hover nhỏ cho nút */
+    .search-box button:hover {
+      background: #2a66d9;
+    }
+  </style>
+</head>
+<body>
+  <h1>Tra cứu Google</h1>
+
+  <div class="search-box">
+    <input type="text" id="query" placeholder="Nhập từ khóa..." />
+    <button id="searchBtn" title="Tìm kiếm (Enter)">
+      <i class="fa fa-search"></i>
+    </button>
+  </div>
+
+  <!-- Hộp hiển thị kết quả -->
+  <div id="resultContainer"></div>
+
+  <script>
+    const btn = document.getElementById("searchBtn");
+    const input = document.getElementById("query");
+    const container = document.getElementById("resultContainer");
+
+    function performSearch() {
+      const q = input.value.trim();
+      if (!q) return; // Không làm gì nếu ô trống
+
+      /*
+       * Google chặn iframe ở nhiều trình duyệt do chính sách bảo mật.
+       * Thủ thuật thêm tham số "igu=1" đôi khi cho phép nhúng (không đảm bảo 100%).
+       * Nếu iframe không hiển thị, bạn có thể mở tab mới thay vì nhúng:
+       *   window.open(`https://www.google.com/search?q=${encodeURIComponent(q)}`, "_blank");
+       */
+      container.innerHTML = `
+        <iframe src="https://www.google.com/search?q=${encodeURIComponent(q)}&igu=1"></iframe>
+      `;
+      container.style.display = "block";
+    }
+
+    // Sự kiện nhấn nút
+    btn.addEventListener("click", performSearch);
+
+    // Sự kiện Enter trong ô input
+    input.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        performSearch();
+      }
+    });
+  </script>
+</body>
+</html>
