@@ -12,8 +12,6 @@ local CONFIG = {
 	HubName = "MasterManhHub",
 	WalkSpeed = { min = 16, max = 250, default = 16 },
 	JumpHeight = { min = 16, max = 250, default = 16 },
-	NoclipKey = Enum.KeyCode.N,
-	FlyKey = Enum.KeyCode.F,
 	ToggleGuiKey = Enum.KeyCode.M,
 	PanelWidth = 280,
 	HeaderHeight = 36,
@@ -439,7 +437,7 @@ end
 local noclipButton = makeToggle(10)
 refreshNoclipButton = function()
 	noclipButton.BackgroundColor3 = noclipOn and CONFIG.Colors.On or CONFIG.Colors.Off
-	noclipButton.Text = "Xuyên tường: " .. (noclipOn and "BẬT" or "TẮT") .. "  (N)"
+	noclipButton.Text = "Xuyên tường: " .. (noclipOn and "BẬT" or "TẮT")
 end
 noclipButton.Activated:Connect(function()
 	setNoclip(not noclipOn)
@@ -448,7 +446,7 @@ end)
 local flyButton = makeToggle(48)
 refreshFlyButton = function()
 	flyButton.BackgroundColor3 = flyOn and CONFIG.Colors.On or CONFIG.Colors.Off
-	flyButton.Text = "Bay: " .. (flyOn and "BẬT" or "TẮT") .. "  (F)"
+	flyButton.Text = "Bay: " .. (flyOn and "BẬT" or "TẮT")
 end
 flyButton.Activated:Connect(function()
 	setFly(not flyOn)
@@ -608,11 +606,7 @@ end)
 
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
 	if gameProcessed then return end
-	if input.KeyCode == CONFIG.NoclipKey then
-		setNoclip(not noclipOn)
-	elseif input.KeyCode == CONFIG.FlyKey then
-		setFly(not flyOn)
-	elseif input.KeyCode == CONFIG.ToggleGuiKey then
+	if input.KeyCode == CONFIG.ToggleGuiKey then
 		setPanelVisible(not panelVisible)
 	end
 end)
