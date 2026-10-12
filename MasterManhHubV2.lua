@@ -12,7 +12,6 @@ local CONFIG = {
 	HubName = "MasterManhHub",
 	WalkSpeed = { min = 16, max = 250, default = 16 },
 	JumpHeight = { min = 16, max = 250, default = 16 },
-	ToggleGuiKey = Enum.KeyCode.M,
 	PanelWidth = 280,
 	HeaderHeight = 36,
 	BodyHeight = 230,
@@ -601,12 +600,5 @@ UserInputService.InputEnded:Connect(function(input)
 	if input.UserInputType == Enum.UserInputType.MouseButton1
 		or input.UserInputType == Enum.UserInputType.Touch then
 		activeDrag = nil
-	end
-end)
-
-UserInputService.InputBegan:Connect(function(input, gameProcessed)
-	if gameProcessed then return end
-	if input.KeyCode == CONFIG.ToggleGuiKey then
-		setPanelVisible(not panelVisible)
 	end
 end)
