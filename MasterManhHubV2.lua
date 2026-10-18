@@ -2,6 +2,7 @@
 -- Dành cho game do bạn phát triển hoặc kiểm thử trong Studio
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 
 local player = Players.LocalPlayer
@@ -14,7 +15,7 @@ local CONFIG = {
 	JumpHeight = { min = 16, max = 250, default = 16 },
 	PanelWidth = 280,
 	HeaderHeight = 36,
-	BodyHeight = 230,
+	BodyHeight = 372,
 	Colors = {
 		Panel = Color3.fromRGB(28, 28, 36),
 		Header = Color3.fromRGB(38, 38, 48),
@@ -31,7 +32,15 @@ local NAMETAG = {
 	MaxDistance = 1e6,
 	StudsOffset = Vector3.new(0, 2.5, 0),
 	UpdateInterval = 0.2,
-	TextSize = 14,
+	Size = UDim2.fromOffset(110, 22),
+	TextSize = 11,
+}
+
+local TELEPORT = {
+	BehindDistance = 4,   -- đứng sau mục tiêu bao nhiêu studs
+	TweenSpeed = 120,     -- studs mỗi giây
+	MinTime = 0.3,
+	MaxTime = 5,
 }
 
 -- ===== Trạng thái =====
@@ -50,12 +59,16 @@ local flyForce
 local flyAttachment
 
 local nametagOn = false
-local nametagTags = {}      -- [Player] = { gui, label }
-local nametagConns = {}     -- [Player] = { connections }
+local nametagTags = {}
+local nametagConns = {}
 local nametagUpdateConn
 local nametagPlayerAddedConn
 local nametagPlayerRemovingConn
 local nametagAccumulator = 0
+
+local selectedPlayer = nil
+local tweenObj = nil
+local dropdownOpen = false
 
 local panelVisible = true
 local activeDrag = nil
@@ -63,11 +76,18 @@ local activeDrag = nil
 local refreshNoclipButton
 local refreshFlyButton
 local refreshNametagButton
+local refreshPlayerList
+local setStatus
+local updateDropdownButton
 
 -- ===== Tiện ích nhân vật =====
 local function getHumanoid()
 	local character = player.Character
 	return character and character:FindFirstChildOfClass("Humanoid")
+end
+
+local function getRoot(character)
+	return character and character:FindFirstChild("HumanoidRootPart")
 end
 
 -- Dùng JumpHeight thay vì JumpPower để kết quả không phụ thuộc trọng lực Workspace
@@ -76,6 +96,72 @@ local function applyMovement(humanoid)
 	humanoid.UseJumpPower = false
 	humanoid.WalkSpeed = values.WalkSpeed
 	humanoid.JumpHeight = values.JumpHeight
+end
+
+-- ===== Teleport =====
+local function cancelTween()
+	if tweenObj then
+		tweenObj:Cancel()
+		tweenObj = nil
+	end
+end
+
+-- Điểm đích: đứng sau lưng mục tiêu, cùng hướng nhìn
+local function getTargetCFrame()
+	if not selectedPlayer then return nil end
+	local targetRoot = getRoot(selectedPlayer.Character)
+	if not targetRoot then return nil end
+	return targetRoot.CFrame * CFrame.new(0, 0, TELEPORT.BehindDistance)
+end
+
+local function teleportInstant()
+	cancelTween()
+	if not selectedPlayer then
+		setStatus("Chưa chọn người chơi")
+		return
+	end
+	local root = getRoot(player.Character)
+	local goal = getTargetCFrame()
+	if not root or not goal then
+		setStatus("Không tìm thấy mục tiêu")
+		return
+	end
+	root.AssemblyLinearVelocity = Vector3.zero
+	root.CFrame = goal
+	setStatus("Đã teleport tới " .. selectedPlayer.Name)
+end
+
+local function teleportTween()
+	cancelTween()
+	if not selectedPlayer then
+		setStatus("Chưa chọn người chơi")
+		return
+	end
+	local root = getRoot(player.Character)
+	local goal = getTargetCFrame()
+	if not root or not goal then
+		setStatus("Không tìm thấy mục tiêu")
+		return
+	end
+
+	-- Thời gian tỷ lệ với khoảng cách để tốc độ bay đều nhau
+	local distance = (goal.Position - root.Position).Magnitude
+	local duration = math.clamp(distance / TELEPORT.TweenSpeed, TELEPORT.MinTime, TELEPORT.MaxTime)
+
+	local tween = TweenService:Create(root, TweenInfo.new(duration, Enum.EasingStyle.Linear), {
+		CFrame = goal,
+	})
+	tweenObj = tween
+	tween.Completed:Connect(function()
+		if tweenObj == tween then
+			tweenObj = nil
+		end
+		if root.Parent then
+			root.AssemblyLinearVelocity = Vector3.zero
+		end
+	end)
+	tween:Play()
+	setStatus("Đang tween tới " .. selectedPlayer.Name)
 end
 
 -- ===== Xuyên tường =====
@@ -145,7 +231,7 @@ local function stopFly()
 	if humanoid then
 		humanoid.PlatformStand = false
 	end
-	local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+	local root = getRoot(player.Character)
 	if root then
 		root.AssemblyLinearVelocity = Vector3.zero
 	end
@@ -159,7 +245,7 @@ end
 local function startFly()
 	if flyOn then return end
 	local humanoid = getHumanoid()
-	local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+	local root = getRoot(player.Character)
 	if not humanoid or not root or humanoid.Health <= 0 then return end
 
 	flyOn = true
@@ -178,7 +264,7 @@ local function startFly()
 	-- PreSimulation chạy ngay trước physics nên lực và vận tốc có hiệu lực ngay frame đó
 	flyConnection = RunService.PreSimulation:Connect(function()
 		local character = player.Character
-		local currentRoot = character and character:FindFirstChild("HumanoidRootPart")
+		local currentRoot = getRoot(character)
 		local hum = character and character:FindFirstChildOfClass("Humanoid")
 		if not currentRoot or not hum then
 			stopFly()
@@ -236,7 +322,7 @@ local function createNametag(otherPlayer, character)
 
 	local billboard = Instance.new("BillboardGui")
 	billboard.Name = "NameTag"
-	billboard.Size = UDim2.fromOffset(200, 40)
+	billboard.Size = NAMETAG.Size
 	billboard.StudsOffset = NAMETAG.StudsOffset
 	billboard.AlwaysOnTop = true -- Tường vẫn che nametag
 	billboard.MaxDistance = NAMETAG.MaxDistance
@@ -245,7 +331,6 @@ local function createNametag(otherPlayer, character)
 
 	local label = Instance.new("TextLabel")
 	label.Size = UDim2.fromScale(1, 1)
-	label.BackgroundColor3 = CONFIG.Colors.Panel
 	label.BackgroundTransparency = 1
 	label.BorderSizePixel = 0
 	label.Font = Enum.Font.GothamBold
@@ -303,11 +388,11 @@ local function setNametag(state)
 			if nametagAccumulator < NAMETAG.UpdateInterval then return end
 			nametagAccumulator = 0
 
-			local localRoot = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+			local localRoot = getRoot(player.Character)
 			if not localRoot then return end
 
 			for otherPlayer, tag in pairs(nametagTags) do
-				local otherRoot = otherPlayer.Character and otherPlayer.Character:FindFirstChild("HumanoidRootPart")
+				local otherRoot = getRoot(otherPlayer.Character)
 				if otherRoot then
 					local distance = (otherRoot.Position - localRoot.Position).Magnitude
 					tag.label.Text = string.format("%s  [%d m]", otherPlayer.Name, math.floor(distance + 0.5))
@@ -335,8 +420,9 @@ local function setNametag(state)
 	refreshNametagButton()
 end
 
--- ===== Respawn: tắt noclip và bay =====
+-- ===== Respawn: tắt noclip, bay và tween =====
 player.CharacterAdded:Connect(function(character)
+	cancelTween()
 	clearFlyObjects()
 	flyOn = false
 
@@ -546,12 +632,235 @@ local function makeSlider(y, labelText, key)
 	render()
 end
 
-makeSlider(10 + 130, "Tốc độ đi (WalkSpeed)", "WalkSpeed")
-makeSlider(10 + 130 + 40, "Độ cao nhảy (JumpHeight)", "JumpHeight")
+makeSlider(130, "Tốc độ đi (WalkSpeed)", "WalkSpeed")
+makeSlider(170, "Độ cao nhảy (JumpHeight)", "JumpHeight")
+
+-- ===== Thành phần: teleport =====
+local teleportTitle = Instance.new("TextLabel")
+teleportTitle.Size = UDim2.new(0.5, 0, 0, 18)
+teleportTitle.Position = UDim2.fromOffset(12, 214)
+teleportTitle.BackgroundTransparency = 1
+teleportTitle.Font = Enum.Font.GothamBold
+teleportTitle.TextSize = 13
+teleportTitle.TextColor3 = CONFIG.Colors.Text
+teleportTitle.TextXAlignment = Enum.TextXAlignment.Left
+teleportTitle.Text = "Teleport"
+teleportTitle.Parent = body
+
+local statusLabel = Instance.new("TextLabel")
+statusLabel.Size = UDim2.new(0.5, -12, 0, 18)
+statusLabel.Position = UDim2.new(0.5, 0, 0, 214)
+statusLabel.BackgroundTransparency = 1
+statusLabel.Font = Enum.Font.Gotham
+statusLabel.TextSize = 11
+statusLabel.TextColor3 = CONFIG.Colors.SubText
+statusLabel.TextXAlignment = Enum.TextXAlignment.Right
+statusLabel.TextTruncate = Enum.TextTruncate.AtEnd
+statusLabel.Text = "Chưa chọn người chơi"
+statusLabel.Parent = body
+
+setStatus = function(text)
+	statusLabel.Text = text
+end
+
+-- Nút dropdown: hiện tên mục tiêu kèm mũi tên
+local dropdownButton = Instance.new("TextButton")
+dropdownButton.Size = UDim2.new(1, -24, 0, 30)
+dropdownButton.Position = UDim2.fromOffset(12, 238)
+dropdownButton.BackgroundColor3 = CONFIG.Colors.Track
+dropdownButton.BorderSizePixel = 0
+dropdownButton.AutoButtonColor = false
+dropdownButton.Font = Enum.Font.GothamBold
+dropdownButton.TextSize = 13
+dropdownButton.TextColor3 = CONFIG.Colors.Text
+dropdownButton.TextXAlignment = Enum.TextXAlignment.Left
+dropdownButton.Text = "  Chọn người chơi"
+dropdownButton.ZIndex = 2
+dropdownButton.Parent = body
+Instance.new("UICorner", dropdownButton).CornerRadius = UDim.new(0, 8)
+
+local arrowLabel = Instance.new("TextLabel")
+arrowLabel.Size = UDim2.fromOffset(24, 30)
+arrowLabel.Position = UDim2.new(1, -28, 0, 0)
+arrowLabel.BackgroundTransparency = 1
+arrowLabel.Font = Enum.Font.GothamBold
+arrowLabel.TextSize = 13
+arrowLabel.TextColor3 = CONFIG.Colors.Text
+arrowLabel.Text = "▼"
+arrowLabel.ZIndex = 3
+arrowLabel.Parent = dropdownButton
+
+-- Danh sách hiện đè lên các nút phía dưới khi mở
+local dropdownList = Instance.new("ScrollingFrame")
+dropdownList.Size = UDim2.new(1, -24, 0, 96)
+dropdownList.Position = UDim2.fromOffset(12, 272)
+dropdownList.BackgroundColor3 = CONFIG.Colors.Header
+dropdownList.BorderSizePixel = 0
+dropdownList.ScrollBarThickness = 4
+dropdownList.CanvasSize = UDim2.new(0, 0, 0, 0)
+dropdownList.AutomaticCanvasSize = Enum.AutomaticSize.Y
+dropdownList.ZIndex = 10
+dropdownList.Visible = false
+dropdownList.Parent = body
+Instance.new("UICorner", dropdownList).CornerRadius = UDim.new(0, 8)
+
+local listLayout = Instance.new("UIListLayout")
+listLayout.Padding = UDim.new(0, 4)
+listLayout.SortOrder = Enum.SortOrder.LayoutOrder
+listLayout.Parent = dropdownList
+
+local listPadding = Instance.new("UIPadding")
+listPadding.PaddingTop = UDim.new(0, 4)
+listPadding.PaddingLeft = UDim.new(0, 4)
+listPadding.PaddingRight = UDim.new(0, 4)
+listPadding.PaddingBottom = UDim.new(0, 4)
+listPadding.Parent = dropdownList
+
+local emptyLabel = Instance.new("TextLabel")
+emptyLabel.Size = UDim2.new(1, -8, 0, 24)
+emptyLabel.BackgroundTransparency = 1
+emptyLabel.Font = Enum.Font.Gotham
+emptyLabel.TextSize = 12
+emptyLabel.TextColor3 = CONFIG.Colors.SubText
+emptyLabel.Text = "  Chưa có người chơi khác"
+emptyLabel.ZIndex = 11
+emptyLabel.Visible = false
+emptyLabel.Parent = dropdownList
+
+updateDropdownButton = function()
+	dropdownButton.Text = "  " .. (selectedPlayer and selectedPlayer.Name or "Chọn người chơi")
+	arrowLabel.Text = dropdownOpen and "▲" or "▼"
+end
+
+local function setDropdownOpen(state)
+	dropdownOpen = state
+	dropdownList.Visible = state
+	updateDropdownButton()
+end
+
+local function selectPlayer(otherPlayer)
+	selectedPlayer = otherPlayer
+	setDropdownOpen(false)
+	setStatus("Đã chọn " .. otherPlayer.Name)
+end
+
+local function makeRow(otherPlayer, order)
+	local row = Instance.new("TextButton")
+	row.Size = UDim2.new(1, -8, 0, 24)
+	row.LayoutOrder = order
+	row.BackgroundColor3 = (otherPlayer == selectedPlayer) and CONFIG.Colors.On or CONFIG.Colors.Panel
+	row.BorderSizePixel = 0
+	row.AutoButtonColor = false
+	row.Font = Enum.Font.Gotham
+	row.TextSize = 13
+	row.TextColor3 = CONFIG.Colors.Text
+	row.TextXAlignment = Enum.TextXAlignment.Left
+	row.Text = "  " .. otherPlayer.Name
+	row.ZIndex = 11
+	row.Parent = dropdownList
+	Instance.new("UICorner", row).CornerRadius = UDim.new(0, 6)
+
+	row.Activated:Connect(function()
+		selectPlayer(otherPlayer)
+	end)
+end
+
+-- Dựng lại danh sách từ server, chỉ gọi khi dropdown mở
+refreshPlayerList = function()
+	for _, child in ipairs(dropdownList:GetChildren()) do
+		if child:IsA("TextButton") then
+			child:Destroy()
+		end
+	end
+
+	local list = {}
+	for _, otherPlayer in ipairs(Players:GetPlayers()) do
+		if otherPlayer ~= player then
+			table.insert(list, otherPlayer)
+		end
+	end
+	table.sort(list, function(a, b)
+		return a.Name:lower() < b.Name:lower()
+	end)
+
+	for i, otherPlayer in ipairs(list) do
+		makeRow(otherPlayer, i)
+	end
+	emptyLabel.Visible = #list == 0
+end
+
+dropdownButton.Activated:Connect(function()
+	if dropdownOpen then
+		setDropdownOpen(false)
+	else
+		refreshPlayerList()
+		setDropdownOpen(true)
+	end
+end)
+
+-- Hai nút teleport, nằm dưới dropdown
+local function makeTeleportButton(text, xScale, xOffset)
+	local button = Instance.new("TextButton")
+	button.Size = UDim2.new(0.5, -18, 0, 30)
+	button.Position = UDim2.new(xScale, xOffset, 0, 278)
+	button.BackgroundColor3 = CONFIG.Colors.Track
+	button.BorderSizePixel = 0
+	button.AutoButtonColor = false
+	button.Font = Enum.Font.GothamBold
+	button.TextSize = 13
+	button.TextColor3 = CONFIG.Colors.Text
+	button.Text = text
+	button.Parent = body
+	Instance.new("UICorner", button).CornerRadius = UDim.new(0, 8)
+	return button
+end
+
+local tweenTeleportButton = makeTeleportButton("Tween TP", 0, 12)
+tweenTeleportButton.Activated:Connect(teleportTween)
+
+local instantTeleportButton = makeTeleportButton("Teleport", 0.5, 6)
+instantTeleportButton.Activated:Connect(teleportInstant)
+
+-- Người chơi rời server: bỏ mục tiêu nếu đang chọn, không đụng vào nút ngay trong sự kiện
+Players.PlayerRemoving:Connect(function(otherPlayer)
+	if selectedPlayer == otherPlayer then
+		selectedPlayer = nil
+		cancelTween()
+		setStatus("Mục tiêu đã rời server")
+		updateDropdownButton()
+	end
+	task.defer(function()
+		if dropdownOpen then
+			refreshPlayerList()
+		end
+	end)
+end)
+
+Players.PlayerAdded:Connect(function()
+	if dropdownOpen then
+		refreshPlayerList()
+	end
+end)
 
 refreshNoclipButton()
 refreshFlyButton()
 refreshNametagButton()
+updateDropdownButton()
+
+-- ===== Thu gọn / mở rộng =====
+local function setPanelVisible(state)
+	panelVisible = state
+	body.Visible = state
+	panel.Size = UDim2.fromOffset(
+		CONFIG.PanelWidth,
+		state and (CONFIG.HeaderHeight + CONFIG.BodyHeight) or CONFIG.HeaderHeight
+	)
+	minimizeButton.Text = state and "–" or "+"
+end
+
+minimizeButton.Activated:Connect(function()
+	setPanelVisible(not panelVisible)
+end)
 
 -- ===== Kéo thả panel =====
 header.InputBegan:Connect(function(input)
@@ -573,22 +882,7 @@ header.InputBegan:Connect(function(input)
 	end
 end)
 
--- ===== Thu gọn / mở rộng =====
-local function setPanelVisible(state)
-	panelVisible = state
-	body.Visible = state
-	panel.Size = UDim2.fromOffset(
-		CONFIG.PanelWidth,
-		state and (CONFIG.HeaderHeight + CONFIG.BodyHeight) or CONFIG.HeaderHeight
-	)
-	minimizeButton.Text = state and "–" or "+"
-end
-
-minimizeButton.Activated:Connect(function()
-	setPanelVisible(not panelVisible)
-end)
-
--- ===== Luồng nhập liệu chung =====
+-- ===== Luồng nhập liệu chung (kéo thả) =====
 UserInputService.InputChanged:Connect(function(input)
 	if activeDrag and (input.UserInputType == Enum.UserInputType.MouseMovement
 		or input.UserInputType == Enum.UserInputType.Touch) then
